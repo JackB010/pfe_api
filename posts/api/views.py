@@ -46,7 +46,7 @@ class PostCommentAPI(generics.ListCreateAPIView):
 
     def get_queryset(self, *args, **kwargs):
         id = self.kwargs.get("pid")
-        return get_object_or_404(Post, id=id).comments
+        return get_object_or_404(Post, id=id).comments.filter(deleted=False)
 
     # def post(self, request, *args, **kwargs):
     #     data = request.data
@@ -184,6 +184,15 @@ class PostViewSet(viewsets.ModelViewSet):
     ]
     filter_backends = [filters.SearchFilter]
     search_fields = ["user__username",]
+    def get_object(self):
+        queryset = self.get_queryset()
+        id = self.kwargs.get("pk")
+   
+        
+        obj = get_object_or_404(Post, id=id)
+        print(obj)
+        # self.check_object_permissions(self.request, obj)
+        return obj
 
     def get_queryset(self, *args, **kwargs):
         user = self.request.user
@@ -201,7 +210,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
 class SearchPost(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
-    search_fields = ["content",]
+    search_fields = ["content", "id"]
     serializer_class = PostSerializer
     queryset = Post.objects.filter(deleted=False)
 
@@ -210,7 +219,7 @@ class SearchPost(generics.ListAPIView):
         search = self.request.query_params.get("search")
         if search == None :
             return Post.objects.none()
-        posts = Post.objects.filter(Q(deleted=False) & Q(content__icontains=search) & Q(show_post_to__in=['everyone']))
+        posts = Post.objects.filter(Q(deleted=False) & Q(show_post_to__in=['everyone']) & Q(content__icontains=search))
         return  posts
         
 

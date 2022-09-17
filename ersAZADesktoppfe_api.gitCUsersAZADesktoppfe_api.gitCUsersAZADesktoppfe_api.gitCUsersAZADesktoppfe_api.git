@@ -1,0 +1,251 @@
+warning: LF will be replaced by CRLF in Pipfile.
+The file will have its original line endings in your working directory
+warning: LF will be replaced by CRLF in accounts/api/serializers.py.
+The file will have its original line endings in your working directory
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mdeleted file mode 100644[m
+[1mindex b6e4761..0000000[m
+[1m--- a/.gitignore[m
+[1m+++ /dev/null[m
+[36m@@ -1,129 +0,0 @@[m
+[31m-# Byte-compiled / optimized / DLL files[m
+[31m-__pycache__/[m
+[31m-*.py[cod][m
+[31m-*$py.class[m
+[31m-[m
+[31m-# C extensions[m
+[31m-*.so[m
+[31m-[m
+[31m-# Distribution / packaging[m
+[31m-.Python[m
+[31m-build/[m
+[31m-develop-eggs/[m
+[31m-dist/[m
+[31m-downloads/[m
+[31m-eggs/[m
+[31m-.eggs/[m
+[31m-lib/[m
+[31m-lib64/[m
+[31m-parts/[m
+[31m-sdist/[m
+[31m-var/[m
+[31m-wheels/[m
+[31m-pip-wheel-metadata/[m
+[31m-share/python-wheels/[m
+[31m-*.egg-info/[m
+[31m-.installed.cfg[m
+[31m-*.egg[m
+[31m-MANIFEST[m
+[31m-[m
+[31m-# PyInstaller[m
+[31m-#  Usually these files are written by a python script from a template[m
+[31m-#  before PyInstaller builds the exe, so as to inject date/other infos into it.[m
+[31m-*.manifest[m
+[31m-*.spec[m
+[31m-[m
+[31m-# Installer logs[m
+[31m-pip-log.txt[m
+[31m-pip-delete-this-directory.txt[m
+[31m-[m
+[31m-# Unit test / coverage reports[m
+[31m-htmlcov/[m
+[31m-.tox/[m
+[31m-.nox/[m
+[31m-.coverage[m
+[31m-.coverage.*[m
+[31m-.cache[m
+[31m-nosetests.xml[m
+[31m-coverage.xml[m
+[31m-*.cover[m
+[31m-*.py,cover[m
+[31m-.hypothesis/[m
+[31m-.pytest_cache/[m
+[31m-[m
+[31m-# Translations[m
+[31m-*.mo[m
+[31m-*.pot[m
+[31m-[m
+[31m-# Django stuff:[m
+[31m-*.log[m
+[31m-local_settings.py[m
+[31m-db.sqlite3[m
+[31m-db.sqlite3-journal[m
+[31m-[m
+[31m-# Flask stuff:[m
+[31m-instance/[m
+[31m-.webassets-cache[m
+[31m-[m
+[31m-# Scrapy stuff:[m
+[31m-.scrapy[m
+[31m-[m
+[31m-# Sphinx documentation[m
+[31m-docs/_build/[m
+[31m-[m
+[31m-# PyBuilder[m
+[31m-target/[m
+[31m-[m
+[31m-# Jupyter Notebook[m
+[31m-.ipynb_checkpoints[m
+[31m-[m
+[31m-# IPython[m
+[31m-profile_default/[m
+[31m-ipython_config.py[m
+[31m-[m
+[31m-# pyenv[m
+[31m-.python-version[m
+[31m-[m
+[31m-# pipenv[m
+[31m-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.[m
+[31m-#   However, in case of collaboration, if having platform-specific dependencies or dependencies[m
+[31m-#   having no cross-platform support, pipenv may install dependencies that don't work, or not[m
+[31m-#   install all needed dependencies.[m
+[31m-#Pipfile.lock[m
+[31m-[m
+[31m-# PEP 582; used by e.g. github.com/David-OConnor/pyflow[m
+[31m-__pypackages__/[m
+[31m-[m
+[31m-# Celery stuff[m
+[31m-celerybeat-schedule[m
+[31m-celerybeat.pid[m
+[31m-[m
+[31m-# SageMath parsed files[m
+[31m-*.sage.py[m
+[31m-[m
+[31m-# Environments[m
+[31m-.env[m
+[31m-.venv[m
+[31m-env/[m
+[31m-venv/[m
+[31m-ENV/[m
+[31m-env.bak/[m
+[31m-venv.bak/[m
+[31m-[m
+[31m-# Spyder project settings[m
+[31m-.spyderproject[m
+[31m-.spyproject[m
+[31m-[m
+[31m-# Rope project settings[m
+[31m-.ropeproject[m
+[31m-[m
+[31m-# mkdocs documentation[m
+[31m-/site[m
+[31m-[m
+[31m-# mypy[m
+[31m-.mypy_cache/[m
+[31m-.dmypy.json[m
+[31m-dmypy.json[m
+[31m-[m
+[31m-# Pyre type checker[m
+[31m-.pyre/[m
+[1mdiff --git a/README.md b/README.md[m
+[1mdeleted file mode 100644[m
+[1mindex 6f69fc6..0000000[m
+[1m--- a/README.md[m
+[1m+++ /dev/null[m
+[36m@@ -1 +0,0 @@[m
+[31m-# pfe_api[m
+\ No newline at end of file[m
+[1mdiff --git a/images/api/serializers.py b/images/api/serializers.py[m
+[1mindex 1736724..edd81cf 100644[m
+[1m--- a/images/api/serializers.py[m
+[1m+++ b/images/api/serializers.py[m
+[36m@@ -98,6 +98,7 @@[m [mclass ImageSerializer(serializers.ModelSerializer):[m
+             "deleted",[m
+             "show_image_to",[m
+             "is_liked",[m
+[32m+[m[32m            "allow_comments"[m
+         )[m
+         extra_kwargs = {"images": {"read_only": True}}[m
+ [m
+[36m@@ -113,7 +114,7 @@[m [mclass ImageSerializer(serializers.ModelSerializer):[m
+         return obj.likes.count()[m
+ [m
+     def get_num_comments(self, obj):[m
+[31m-        return obj.comments.count()[m
+[32m+[m[32m        return obj.comments.filter(deleted=False).count()[m
+ [m
+     def get_num_favorited(self, obj):[m
+         return obj.favorited.count()[m
+[1mdiff --git a/images/api/views.py b/images/api/views.py[m
+[1mindex 8857279..6cd1860 100644[m
+[1m--- a/images/api/views.py[m
+[1m+++ b/images/api/views.py[m
+[36m@@ -48,7 +48,7 @@[m [mclass ImageCommentAPI(generics.ListCreateAPIView):[m
+ [m
+     def get_queryset(self, *args, **kwargs):[m
+         id = self.kwargs.get("iid")[m
+[31m-        return get_object_or_404(Image, id=id).comments[m
+[32m+[m[32m        return get_object_or_404(Image, id=id).comments.filter(deleted=False)[m
+ [m
+ [m
+ class LikeImageCommentAPI(generics.GenericAPIView):[m
+[1mdiff --git a/posts/api/serializers.py b/posts/api/serializers.py[m
+[1mindex 6532e64..55fb512 100644[m
+[1m--- a/posts/api/serializers.py[m
+[1m+++ b/posts/api/serializers.py[m
+[36m@@ -73,7 +73,8 @@[m [mclass PostSerializer(serializers.ModelSerializer):[m
+             "num_favorited",[m
+             "deleted",[m
+             "show_post_to",[m
+[31m-            "is_liked"[m
+[32m+[m[32m            "is_liked",[m
+[32m+[m[32m            "allow_comments"[m
+         )[m
+         read_only_fields = ["id", "created"][m
+         extra_kwargs = {"deleted": {"write_only": True}}[m
+[36m@@ -91,7 +92,7 @@[m [mclass PostSerializer(serializers.ModelSerializer):[m
+         return obj.likes.count()[m
+ [m
+     def get_num_comments(self, obj):[m
+[31m-        return obj.comments.count()[m
+[32m+[m[32m        return obj.comments.filter(deleted=False).count()[m
+ [m
+     def get_num_favorited(self, obj):[m
+         return obj.favorited.count()[m
+[1mdiff --git a/posts/api/views.py b/posts/api/views.py[m
+[1mindex a0b7f48..f5ab620 100644[m
+[1m--- a/posts/api/views.py[m
+[1m+++ b/posts/api/views.py[m
+[36m@@ -46,7 +46,7 @@[m [mclass PostCommentAPI(generics.ListCreateAPIView):[m
+ [m
+     def get_queryset(self, *args, **kwargs):[m
+         id = self.kwargs.get("pid")[m
+[31m-        return get_object_or_404(Post, id=id).comments[m
+[32m+[m[32m        return get_object_or_404(Post, id=id).comments.filter(deleted=False)[m
+ [m
+     # def post(self, request, *args, **kwargs):[m
+     #     data = request.data[m
+[36m@@ -184,6 +184,15 @@[m [mclass PostViewSet(viewsets.ModelViewSet):[m
+     ][m
+     filter_backends = [filters.SearchFilter][m
+     search_fields = ["user__username",][m
+[32m+[m[32m    def get_object(self):[m
+[32m+[m[32m        queryset = self.get_queryset()[m
+[32m+[m[32m        id = self.kwargs.get("pk")[m
+[32m+[m[41m   [m
+[32m+[m[41m        [m
+[32m+[m[32m        obj = get_object_or_404(Post, id=id)[m
+[32m+[m[32m        print(obj)[m
+[32m+[m[32m        # self.check_object_permissions(self.request, obj)[m
+[32m+[m[32m        return obj[m
+ [m
+     def get_queryset(self, *args, **kwargs):[m
+         user = self.request.user[m
+[36m@@ -201,7 +210,7 @@[m [mclass PostViewSet(viewsets.ModelViewSet):[m
+ [m
+ class SearchPost(generics.ListAPIView):[m
+     filter_backends = [filters.SearchFilter][m
+[31m-    search_fields = ["content",][m
+[32m+[m[32m    search_fields = ["content", "id"][m
+     serializer_class = PostSerializer[m
+     queryset = Post.objects.filter(deleted=False)[m
+ [m
+[36m@@ -210,7 +219,7 @@[m [mclass SearchPost(generics.ListAPIView):[m
+         search = self.request.query_params.get("search")[m
+         if search == None :[m
+             return Post.objects.none()[m
+[31m-        posts = Post.objects.filter(Q(deleted=False) & Q(content__icontains=search) & Q(show_post_to__in=['everyone']))[m
+[32m+[m[32m        posts = Post.objects.filter(Q(deleted=False) & Q(show_post_to__in=['everyone']) & Q(content__icontains=search))[m
+         return  posts[m
+         [m
+ [m

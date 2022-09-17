@@ -48,7 +48,7 @@ class ImageCommentAPI(generics.ListCreateAPIView):
 
     def get_queryset(self, *args, **kwargs):
         id = self.kwargs.get("iid")
-        return get_object_or_404(Image, id=id).comments
+        return get_object_or_404(Image, id=id).comments.filter(deleted=False)
 
 
 class LikeImageCommentAPI(generics.GenericAPIView):

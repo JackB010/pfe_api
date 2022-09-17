@@ -73,7 +73,8 @@ class PostSerializer(serializers.ModelSerializer):
             "num_favorited",
             "deleted",
             "show_post_to",
-            "is_liked"
+            "is_liked",
+            "allow_comments"
         )
         read_only_fields = ["id", "created"]
         extra_kwargs = {"deleted": {"write_only": True}}
@@ -91,7 +92,7 @@ class PostSerializer(serializers.ModelSerializer):
         return obj.likes.count()
 
     def get_num_comments(self, obj):
-        return obj.comments.count()
+        return obj.comments.filter(deleted=False).count()
 
     def get_num_favorited(self, obj):
         return obj.favorited.count()

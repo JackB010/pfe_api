@@ -98,6 +98,7 @@ class ImageSerializer(serializers.ModelSerializer):
             "deleted",
             "show_image_to",
             "is_liked",
+            "allow_comments"
         )
         extra_kwargs = {"images": {"read_only": True}}
 
@@ -113,7 +114,7 @@ class ImageSerializer(serializers.ModelSerializer):
         return obj.likes.count()
 
     def get_num_comments(self, obj):
-        return obj.comments.count()
+        return obj.comments.filter(deleted=False).count()
 
     def get_num_favorited(self, obj):
         return obj.favorited.count()
