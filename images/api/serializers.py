@@ -10,12 +10,17 @@ from posts.models import Tag
 class CommentSerializer(serializers.ModelSerializer):
     num_likes = serializers.SerializerMethodField(read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
+    is_liked = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = CommentImage
-        fields = "id", "comment", "created", "profile", "num_likes", "deleted"
+        fields = "id", "comment", "created", "profile", "num_likes", "deleted", "is_liked"
         extra_kwargs = {"deleted": {"write_only": True}}
         read_only_fields = ["id", "created"]
+
+    def get_is_liked(self, obj):
+        request = self.context.get("request")
+        return request.user in obj.likes.all()
 
     def get_profile(self, obj):
         return UserShortSerializer(obj.user.profile).data

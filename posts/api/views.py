@@ -46,7 +46,7 @@ class PostCommentAPI(generics.ListCreateAPIView):
 
     def get_queryset(self, *args, **kwargs):
         id = self.kwargs.get("pid")
-        return get_object_or_404(Post, id=id).comments.filter(deleted=False)
+        return get_object_or_404(Post, id=id).comments.filter(deleted=False).order_by("-created")
 
     # def post(self, request, *args, **kwargs):
     #     data = request.data
@@ -80,6 +80,7 @@ class LikePostCommentAPI(generics.GenericAPIView):
                 comment.likes.remove(request.user)
             else:
                 comment.likes.add(request.user)
+                post = comment.post
                 notification = Notification.objects.create(
                     to_user=post.user,
                     created_by=request.user,
@@ -186,11 +187,8 @@ class PostViewSet(viewsets.ModelViewSet):
     search_fields = ["user__username",]
     def get_object(self):
         queryset = self.get_queryset()
-        id = self.kwargs.get("pk")
-   
-        
+        id = self.kwargs.get("pk")        
         obj = get_object_or_404(Post, id=id)
-        print(obj)
         # self.check_object_permissions(self.request, obj)
         return obj
 
@@ -210,7 +208,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
 class SearchPost(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
-    search_fields = ["content", "id"]
+    search_fields = ["content"]
     serializer_class = PostSerializer
     queryset = Post.objects.filter(deleted=False)
 
