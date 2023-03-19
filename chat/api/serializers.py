@@ -7,8 +7,28 @@ from rest_framework import serializers
 from django.conf import settings
 from django.core.cache import cache
 from accounts.api.serializers import UserShortSerializer
-from chat.models import Contact, Message
+from chat.models import Contact, Message, ImageChat
 
+
+class ImageChatSerializer(serializers.ModelSerializer):
+    # photo = serializers.SerializerMethodField(read_only=True)
+    user = serializers.CharField(allow_blank=True)
+
+    class Meta:
+        model = ImageChat
+        fields = ("photo","user")
+        extra_kwargs = {"user": {"write_only": True}}
+
+    def create(self, validate_data):
+        id = validate_data["user"]
+        photo = validate_data["photo"]
+        msg = Message.objects.get(id=id)
+        msg.photos.create(photo=photo, user=msg.sender)
+        msg.save()
+        return msg.photos.last()
+    # def get_photo(self, obj):
+    #     request = self.context.get("request")
+    #     return request.build_absolute_uri(obj.photo.url)
 
 class UserSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField(read_only=True)
@@ -16,30 +36,30 @@ class UserSerializer(serializers.ModelSerializer):
     last_seen = serializers.SerializerMethodField(read_only=True)
     online = serializers.SerializerMethodField(read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
-
+    # photos = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = get_user_model()
         fields = ("profile", "last_message", "unread_messages", "last_seen", "online")
 
     def get_profile(self, obj):
-        return UserShortSerializer(obj.profile).data
+        request = self.context.get("request")
+        return UserShortSerializer(obj.profile, context={"request": request}).data
 
     def get_last_seen(self, obj):
-        last = cache.get('seen_%s' % obj.username)
+        last = cache.get("seen_%s" % obj.username)
         request = self.context.get("request")
-        if last!=None:
+        if last != None:
             request.user.profile.last_seen = last
             request.user.profile.save()
             return last
         else:
-            return obj.profile.last_seen 
+            return obj.profile.last_seen
 
     def get_online(self, obj):
-        last = cache.get('seen_%s' % obj.username)
-        if last:            
+        last = cache.get("seen_%s" % obj.username)
+        if last:
             now = timezone.now()
-            if now > (last + datetime.timedelta(
-                         seconds=settings.USER_ONLINE_TIMEOUT)):
+            if now > (last + datetime.timedelta(seconds=settings.USER_ONLINE_TIMEOUT)):
                 return False
             else:
                 return True
@@ -65,7 +85,10 @@ class UserSerializer(serializers.ModelSerializer):
         if contact == None:
             return ""
         deleted = contact.deleted
-        content = contact.content
+        content = {
+            "content": contact.content,
+            "photos": False if not contact.photos.all() else True,
+        }
         return message_deleted if deleted else content
 
     def get_unread_messages(self, obj):
@@ -80,10 +103,31 @@ class UserSerializer(serializers.ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.StringRelatedField()
+    photos = ImageChatSerializer(many=True, read_only=True)
 
     class Meta:
         model = Message
         fields = "__all__"
+        # extra_kwargs = {"photos":{"read_only":tr}}
+
+    def create(self, validate_data):
+        context = self.context
+        request = context.get("request")
+        view = context.get("view")
+        to = view.kwargs.get("to")
+
+        msg = Message.objects.create(
+            sender=request.user, content=validate_data["content"]
+        )
+        # photos = validate_data.get("photos")
+        # if photos:
+        #     for item in photos:
+        #         msg.photos.create(image=item.get("photo"), user=request.user)
+        msg.save()
+        to = get_user_model().objects.get(username=to)
+
+        Contact.objects.filter(user=request.user, to=to).first().messages.add(msg)
+        return msg
 
 
 #     username = serializers.CharField(required=True, max_length=100)

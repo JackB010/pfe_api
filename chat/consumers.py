@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 
 from .models import ChatRoom, Contact, Message
-
+from chat.api.serializers import ImageChatSerializer
 User = get_user_model()
 
 
@@ -18,6 +18,7 @@ class ChatConsumer(WebsocketConsumer):
             "content": "Message deleted" if message.deleted else message.content,
             "timestamp": str(message.timestamp),
             "seen": message.seen,
+            "photos":ImageChatSerializer(message.photos.all(), many=True).data,
             "deleted": message.deleted,
         }
 
@@ -31,7 +32,7 @@ class ChatConsumer(WebsocketConsumer):
         obj1 = Contact.objects.get(user=user, to=to).messages.all()
         obj2 = Contact.objects.get(user=to, to=user).messages.all()
 
-        messages = obj1.union(obj2).order_by("-timestamp")[:6][::-1]
+        messages = obj1.union(obj2).order_by("-timestamp")[:8][::-1]
 
         content = {"message": self.messages_to_json(messages), "type": "fetch_messages"}
         if to.is_active == False:

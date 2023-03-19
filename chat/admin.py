@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ChatRoom, Contact, GroupChatRoom, Message
+from .models import ChatRoom, Contact, Message, ImageChat
 
 
 @admin.register(Contact)
@@ -10,6 +10,7 @@ class ContactAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Message)
+admin.site.register(ImageChat)
 # admin.site.register(Contact)
 admin.site.register(ChatRoom)
-admin.site.register(GroupChatRoom)
+# admin.site.register(GroupChatRoom)

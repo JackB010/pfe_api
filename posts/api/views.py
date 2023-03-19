@@ -1,44 +1,159 @@
 from django.db.models import Q
-from django.shortcuts import get_list_or_404, get_object_or_404
+from django.contrib.auth import get_user_model
+from django.shortcuts import  get_object_or_404
 from rest_framework import filters, generics, pagination, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.api.permissions import IsCreaterOrReadOnly
 from accounts.api.serializers import UserShortSerializer
+from pages.api.serializers import PageShortSerializer
+from accounts.api.views import check_type
 from accounts.models import FollowRelationShip, Profile
 from notifications.models import Notification
-from posts.models import CommentPost, Post
+from posts.models import CommentPost, Post, PostByOwner, CommentReply, ImageItem
 
-from .serializers import CommentSerializer, LSFSerializer, PostSerializer
-
-
-class PostLikersAPI(generics.ListAPIView):
-    serializer_class = UserShortSerializer
-
-    def get_queryset(self, *args, **kwargs):
-        id = self.kwargs.get("pid")
-        post = Post.objects.filter(id=id).first()
-        return [i.profile for i in post.likes.all()]
+from .serializers import CommentSerializer, LSFSerializer, PostSerializer, ReplyCommentSerializer, ImageItemSerializer
 
 
-class CommentLikersAPI(generics.ListAPIView):
-    serializer_class = UserShortSerializer
+class ImageItemAPI(generics.CreateAPIView):
+    serializer_class = ImageItemSerializer
+    queryset = ImageItem.objects.filter(deleted=False)
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+
+class LikeCommentReplyAPI(generics.GenericAPIView):
+    serializer_class = LSFSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def post(self, request, *args, **kwargs):
+        data = self.get_serializer(data=request.data)
+        if data.is_valid():
+            id = request.data.get("id")
+            reply = CommentReply.objects.filter(Q(id=id) & Q(deleted=False)).first()
+            if request.user in reply.likes.all():
+                reply.likes.remove(request.user)
+            else:
+                reply.likes.add(request.user)
+                comment = reply.comment
+                notification = Notification.objects.create(
+                    to_user=comment.user,
+                    created_by=request.user,
+                    action=Notification.NotificationChoices.reply_liked,
+                    comment=comment,
+                )
+                notification.save()
+            return Response({"status": status.HTTP_202_ACCEPTED})
+        return Response(
+            {"status": status.HTTP_406_NOT_ACCEPTABLE, "errors": data.errors}
+        )
+
+
+
+
+
+
+class ReplyCommentLikersAPI(generics.ListAPIView):
 
     def get_queryset(self, *args, **kwargs):
         id = self.kwargs.get("cid")
-        comment = CommentPost.objects.filter(id=id).first()
-        return [i.profile for i in comment.likes.all()]
+        reply = CommentReply.objects.filter(Q(id=id) & Q(deleted=False)).first()
+        return reply
 
+    def get(self, *args, **kwargs):
+        id = self.kwargs.get("cid")
+        reply = CommentReply.objects.filter(id=id).first()
+        likes = []
+        if reply:
+            for i in reply.likes.all():
+                if (check_type(i.username)=="profile"):
+                    likes.append(UserShortSerializer(i.profile, context={"request": self.request}).data)
+                else:
+                    likes.append(PageShortSerializer(i.page, context={"request": self.request}).data)
+        return Response(likes)
 
-class PostCommentUpdateAPI(generics.UpdateAPIView):
-    serializer_class = CommentSerializer
-    queryset = CommentPost.objects.all()
+class ReplyCommentUpdateAPI(generics.UpdateAPIView):
+    serializer_class = ReplyCommentSerializer
+    queryset = CommentReply.objects.filter(deleted=False)
     permission_classes = [IsAuthenticated, IsCreaterOrReadOnly]
 
     def get_object(self, *args, **kwargs):
         id = self.kwargs.get("cid")
-        return get_object_or_404(CommentPost, Q(id=id) & Q(deleted=False))
+        return get_object_or_404(self.get_queryset(), id=id)
+
+
+class ReplyCommentAPI(generics.ListCreateAPIView):
+    serializer_class = ReplyCommentSerializer
+
+    def get_queryset(self, *args, **kwargs):
+        id = self.kwargs.get("pid")
+        print(id)
+        return (
+            get_object_or_404(CommentPost, id=id)
+            .replies.filter(deleted=False)
+            .order_by("-created")
+        )
+
+
+
+class PostLikersAPI(generics.GenericAPIView):
+    # serializer_class = UserShortSerializer
+    queryset = Post.objects.all()
+
+    def get(self, request, *args, **kwargs):
+        request = self.request
+        id = self.kwargs.get("pid")
+        post = Post.objects.filter(id=id).first()
+        profiles = []
+        pages = []
+        if post:
+            for i in post.likes.all():
+                if check_type(i.username) == "profile":
+                    profiles.append(i.profile)
+                else:
+                    pages.append(i.page)
+        return Response(
+            {
+                "pages": PageShortSerializer(
+                    pages, many=True, context={"request": request}
+                ).data,
+                "profiles": UserShortSerializer(
+                    profiles, many=True, context={"request": request}
+                ).data,
+            }
+        )
+
+
+class CommentLikersAPI(generics.ListAPIView):
+
+    def get_queryset(self, *args, **kwargs):
+        id = self.kwargs.get("cid")
+        comment = CommentPost.objects.filter(id=id).first()
+        return comment
+    def get(self, *args, **kwargs):
+        id = self.kwargs.get("cid")
+        comment = CommentPost.objects.filter(id=id).first()
+        likes = []
+        if comment:
+            for i in comment.likes.all():
+                if (check_type(i.username)=="profile"):
+                    likes.append(UserShortSerializer(i.profile, context={"request": self.request}).data)
+                else:
+                    likes.append(PageShortSerializer(i.page, context={"request": self.request}).data)
+        return Response(likes)
+
+class PostCommentUpdateAPI(generics.UpdateAPIView):
+    serializer_class = CommentSerializer
+    queryset = CommentPost.objects.filter(deleted=False)
+    permission_classes = [IsAuthenticated, IsCreaterOrReadOnly]
+
+    def get_object(self, *args, **kwargs):
+        id = self.kwargs.get("cid")
+        return get_object_or_404(self.get_queryset, id=id)
 
 
 class PostCommentAPI(generics.ListCreateAPIView):
@@ -46,24 +161,11 @@ class PostCommentAPI(generics.ListCreateAPIView):
 
     def get_queryset(self, *args, **kwargs):
         id = self.kwargs.get("pid")
-        return get_object_or_404(Post, id=id).comments.filter(deleted=False).order_by("-created")
-
-    # def post(self, request, *args, **kwargs):
-    #     data = request.data
-    #     data = self.get_serializer(data=data)
-    #     if data.is_valid():
-    #         data = data.data
-    #         id = self.kwargs.get("pid")
-    #         post = get_object_or_404(Post,id = id)
-    #         comment = CommentPost(
-    #                     content=data["comment"],
-    #                     post=post,
-    #                     user=request.user
-    #                     )
-    #         comment.save()
-    #         return Response(comment)
-    #     return Response({"errors": data.errors})
-
+        return (
+            get_object_or_404(Post, id=id)
+            .comments.filter(deleted=False)
+            .order_by("-created")
+        )
 
 class LikePostCommentAPI(generics.GenericAPIView):
     serializer_class = LSFSerializer
@@ -164,68 +266,104 @@ class FavoritePostAPI(generics.GenericAPIView):
         )
 
 
-class FollowingPostsAPI(generics.ListAPIView):
+class FavoritedSavedPostsAPI(generics.ListAPIView):
     serializer_class = PostSerializer
     permission_classes = [
         IsAuthenticated,
     ]
 
-    def get_queryset(self, *args, **kwargs):
-        p = FollowRelationShip.objects.filter(user=self.request.user)
-        p = [i.following for i in p]
-        return Post.objects.filter(Q(deleted=False) & Q(user__in=p) & Q(show_post_to__in=['everyone', 'followers']))
+    def get_queryset(self, ptype=None, *args, **kwargs):
+        user = self.request.user
+        if ptype == "saved":
+            return user.saved.all()
+        elif ptype == "favorited":
+            return user.favorited.all()
 
-
+class StandardResultsSetPagination(pagination.PageNumberPagination):
+    page_size = 10
 class PostViewSet(viewsets.ModelViewSet):
     serializer_class = PostSerializer
     queryset = Post.objects.filter(deleted=False)
+    pagination_class = StandardResultsSetPagination
+
     permission_classes = [
-        IsCreaterOrReadOnly,
-        IsAuthenticated,
+        # IsCreaterOrReadOnly,
+        # IsAuthenticated,
     ]
     filter_backends = [filters.SearchFilter]
-    search_fields = ["user__username",]
+    search_fields = ["user__username"]
+
     def get_object(self):
-        queryset = self.get_queryset()
-        id = self.kwargs.get("pk")        
-        obj = get_object_or_404(Post, id=id)
+        id = self.kwargs.get("pk")
+        obj = get_object_or_404(Post, Q(deleted=False) & Q(pk=id))
         # self.check_object_permissions(self.request, obj)
         return obj
 
     def get_queryset(self, *args, **kwargs):
         user = self.request.user
         search = self.request.query_params.get("search")
-        if user.profile.user.username == search:
-            return Post.objects.filter(Q(deleted=False) & Q(user=user))
+        if search == None:
+            if user.id == None:
+                return Post.objects.none()
+            following = user.following.all().values("following")
+            return Post.objects.filter(
+                Q(deleted=False)
+                & Q(user__in=following)
+                & Q(show_post_to__in=["everyone", "followers"])
+            )
         else:
-            profile = Profile.objects.filter(user__username=search).first()
-            if profile != None:
-                if user in profile.followers_profile.all():
-                    return  Post.objects.filter(Q(deleted=False) & Q(show_post_to__in=['everyone', 'followers']) & Q(user=profile.user))
+            if user.id == None:
+                if check_type(search) == "page":
+                    return Post.objects.filter(
+                        Q(deleted=False)
+                        & Q(show_post_to__in=["everyone"])
+                        & Q(user__username=search)
+                    )
+                return Post.objects.none()
+
+            target_u = get_user_model().objects.filter(username=search).first()
+            f = target_u.following.filter(user=user, following=target_u).count() != 0
+            if f:
+                if user == target_u:
+                    PL = ["everyone", "followers", "onlyme"]
                 else:
-                    return  Post.objects.filter(Q(deleted=False) & Q(show_post_to__in=['everyone']) & Q(user=profile.user))
+                    PL = ["everyone", "followers"]
+                return Post.objects.filter(
+                    Q(deleted=False) & Q(show_post_to__in=PL) & Q(user=target_u)
+                )
+            else:
+                return Post.objects.filter(
+                    Q(deleted=False)
+                    & Q(show_post_to__in=["everyone"])
+                    & Q(user=target_u)
+                )
         return Post.objects.none()
 
 class SearchPost(generics.ListAPIView):
     filter_backends = [filters.SearchFilter]
-    search_fields = ["content"]
+    search_fields = ["content", "user__username"]
     serializer_class = PostSerializer
     queryset = Post.objects.filter(deleted=False)
 
     def get_queryset(self, *args, **kwargs):
         user = self.request.user
         search = self.request.query_params.get("search")
-        if search == None :
+        if search == None:
             return Post.objects.none()
-        posts = Post.objects.filter(Q(deleted=False) & Q(show_post_to__in=['everyone']) & Q(content__icontains=search))
-        return  posts
-        
+        if self.request.user.id != None:
+            following = user.following.all().values("following")
 
+            posts_f = Post.objects.filter(
+                Q(user__in=following)
+                & Q(deleted=False)
+                & Q(show_post_to__in=["followers"])
+                & Q(content__icontains=search)
+            )
+            posts = Post.objects.filter(
+                Q(deleted=False)
+                & Q(show_post_to__in=["everyone"])
+                & Q(content__icontains=search)
+            )
+            return posts | posts_f
 
-
-
-
-
-
-
-
+        return Post.objects.none()

@@ -15,14 +15,7 @@ from django.utils.translation import gettext_lazy as _
 # models functions
 def img_profile(instance, filename):
     ext = filename.split(".")[-1]
-    upload_to = f"profile/{instance.id}/"
-    file_name = f"{instance.user.username}__{secrets.token_hex(8)}.{ext}"
-    return os.path.join(upload_to, file_name)
-
-
-def img_profile_icon(instance, filename):
-    ext = filename.split(".")[-1]
-    upload_to = f"profile_icons/{instance.id}/"
+    upload_to = f"{instance.__class__.__name__}/{instance.id}/"
     file_name = f"{instance.user.username}__{secrets.token_hex(8)}.{ext}"
     return os.path.join(upload_to, file_name)
 
@@ -43,6 +36,12 @@ class PrivacieLevels(models.TextChoices):
     onlyme = "onlyme"
 
 
+class FTypeChoices(models.TextChoices):
+    user_user = "user_user"
+    user_page = "user_page"
+    page_page = "page_page"
+
+
 class ThemeChoices(models.TextChoices):
     dark = "dark"
     light = "light"
@@ -55,6 +54,8 @@ class ProfileSettings(models.Model):
         get_user_model(), on_delete=onDelete, related_name="settings"
     )
 
+    birth_day = models.DateField(_("Birth Day"), blank=True, null=True)
+
     show_birth_day = models.CharField(
         choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
     )
@@ -63,11 +64,19 @@ class ProfileSettings(models.Model):
         choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
     )
 
+    show_gender = models.CharField(
+        choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
+    )
+
+    show_favorites = models.CharField(
+        choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
+    )
+
     show_photo_profile = models.CharField(
         choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
     )
 
-    sex = models.CharField(
+    gender = models.CharField(
         choices=SexChoices.choices, default=SexChoices.none, max_length=6
     )
 
@@ -81,15 +90,11 @@ class ProfileSettings(models.Model):
         return f"settings for {self.user.username} "
 
 
-class Profile(models.Model):
-
+class BaseUser(models.Model):
     id = models.UUIDField(default=uuid4, primary_key=True, editable=False)
-    user = models.OneToOneField(
-        get_user_model(), on_delete=onDelete, related_name="profile"
-    )
     bio = models.TextField(blank=True, null=True)
     photo = models.ImageField(
-        _("profile picture"),
+        _("picture"),
         upload_to=img_profile,
         default="default/default_photo.jpg",
         blank=True,
@@ -98,7 +103,7 @@ class Profile(models.Model):
 
     photo_icon = models.ImageField(
         _("profil picture icon"),
-        upload_to=img_profile_icon,
+        upload_to=img_profile,
         default="default/default_icon.png",
         blank=True,
         null=True,
@@ -109,14 +114,13 @@ class Profile(models.Model):
     # blocked = models.ManyToManyField(get_user_model(),related_name='block_list' ,blank=True)
     first_ip = models.GenericIPAddressField(blank=False, editable=False, null=True)
     ip = models.GenericIPAddressField(blank=False, editable=False, null=True)
-    followers_profile = models.ManyToManyField(
-        get_user_model(), related_name="followers_profile"
-    )
-
-    birth_day = models.DateField(_("Birth Day"), blank=True, null=True)
     created_at = models.DateTimeField(_("created"), auto_now_add=True)
     last_updated = models.DateTimeField(_("updated"), auto_now=True)
     last_seen = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        abstract = True
+
     def clean(self, *args, **kwargs):
         if self.photo.width <= 300 or self.photo.height <= 300:
             raise ValidationError(_(f"{self.photo.name}  size not valid "))
@@ -129,6 +133,18 @@ class Profile(models.Model):
             img.thumbnail(size)
             img.save(self.photo_icon.path)
 
+
+class Profile(BaseUser):
+    user = models.OneToOneField(
+        get_user_model(), on_delete=onDelete, related_name="profile"
+    )
+    # followers_profile = models.ManyToManyField(
+    #     get_user_model(), related_name="followers_profile", blank=True
+    # )
+    # followering_page = models.ManyToManyField(
+    #     get_user_model(), related_name="user_foll_page", blank=True
+    # )
+
     def __str__(self):
         return f"{self.user.username} profile"
 
@@ -140,6 +156,7 @@ class FollowRelationShip(models.Model):
     following = models.ForeignKey(
         get_user_model(), related_name="followed_by", on_delete=onDelete
     )
+    ftype = models.CharField(choices=FTypeChoices.choices, max_length=9)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -147,28 +164,6 @@ class FollowRelationShip(models.Model):
 
     def __str__(self, *args, **kwargs):
         return f"{self.user} following  {self.following}"
-
-
-# class LoginModel(models.Model):
-
-#     id = models.CharField(max_length=64, primary_key=True, editable=False)
-#     username_email = models.CharField(max_length=100, blank=False, unique=True)
-#     code = models.CharField(max_length=6, blank=False, editable=False)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     class Meta:
-#         ordering = ["-created_at"]
-
-#     def save(self, *args, **kwargs):
-#         if self.username_email:
-#             self.id = secrets.token_hex()
-#             self.code = code = random.randint(100000, 999999)
-#         if self.username_email == None:
-#             raise ValidationError("Should give username or email to login")
-#         return super().save(self, *args, **kwargs)
-
-#     def __str__(self, *args, **kwargs):
-#         return f"login for {self.username_email}"
 
 
 class ResetPassword(models.Model):

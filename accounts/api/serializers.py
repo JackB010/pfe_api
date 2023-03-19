@@ -1,9 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Q, Count
 from rest_framework import serializers
 
-from accounts.models import FollowRelationShip, Profile, ProfileSettings
+from accounts.models import FollowRelationShip, Profile, ProfileSettings, FTypeChoices
 
+# from .views import check_type
 #################################
 ############# Done ##############
 #################################
@@ -11,13 +12,24 @@ from accounts.models import FollowRelationShip, Profile, ProfileSettings
 
 class UserShortSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField(read_only=True)
+    ftype = serializers.SerializerMethodField(read_only=True)
+    # photo_icon_url = serializers.SerializerMethodField(
+    #     "get_photo_icon_url", read_only=True
+    # )
 
     class Meta:
         model = Profile
-        fields = ["id", "username", "photo_icon"]
+        fields = ["id", "username", "photo_icon", "ftype"]
+
+    def get_ftype(self, obj):
+        return "profile"
 
     def get_username(self, obj):
         return obj.user.username
+
+    # def get_photo_icon_url(self, obj):
+    #     request = self.context.get("request")
+    #     return request.build_absolute_uri(obj.photo_icon.url)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -46,8 +58,13 @@ class SettingsSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField(read_only=True)
     count_followed_by = serializers.SerializerMethodField(read_only=True)
-    count_following = serializers.SerializerMethodField(read_only=True)
+    count_following_page = serializers.SerializerMethodField(read_only=True)
+    count_following_profile = serializers.SerializerMethodField(read_only=True)
     # country_show = serializers.SerializerMethodField(read_only=True)
+    num_total_likes = serializers.SerializerMethodField(read_only=True)
+    num_total_favorites = serializers.SerializerMethodField(read_only=True)
+    num_total_posts = serializers.SerializerMethodField(read_only=True)
+    num_total_events = serializers.SerializerMethodField(read_only=True)
     user = UserSerializer(read_only=True)
 
     class Meta:
@@ -58,15 +75,32 @@ class ProfileSerializer(serializers.ModelSerializer):
             "photo_icon",
             "is_following",
             # "country_show",
-            "birth_day",
+            # "birth_day",
             "count_followed_by",
-            "count_following",
+            "count_following_page",
+            "count_following_profile",
+            "num_total_likes",
+            "num_total_favorites",
+            "num_total_posts",
+            "num_total_events",
             "bio",
             # "country",
             "user",
         )
         # extra_kwargs = {"country": {"write_only": True}}
         read_only_fields = ("photo_icon",)
+
+    def get_num_total_likes(self, obj):
+        return obj.user.post_set.aggregate(Count("likes"))["likes__count"]
+
+    def get_num_total_favorites(self, obj):
+        return obj.user.post_set.aggregate(Count("favorited"))["favorited__count"]
+
+    def get_num_total_posts(self, obj):
+        return obj.user.post_set.count()
+
+    def get_num_total_events(self, obj):
+        return obj.user.event_set.count()
 
     def update(self, instance, validated_data):
         instance.photo_icon = validated_data.get("photo", instance.photo_icon)
@@ -76,7 +110,6 @@ class ProfileSerializer(serializers.ModelSerializer):
     #     return obj.get_country_display()
 
     def get_is_following(self, obj):
-
         request = self.context.get("request")
         if request.user.id == None:
             return ""
@@ -87,10 +120,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         )
 
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.count()
+        return obj.user.followed_by.exclude(user=obj.user).count()
 
-    def get_count_following(self, obj):
-        return obj.user.following.count()
+    def get_count_following_page(self, obj):
+        return obj.user.following.filter(ftype=FTypeChoices.user_page).count()
+
+    def get_count_following_profile(self, obj):
+        return obj.user.following.filter(ftype=FTypeChoices.user_user).count()
 
 
 class FollowRelationShipSerializer(serializers.Serializer):

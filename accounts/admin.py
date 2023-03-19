@@ -3,9 +3,9 @@ from django.contrib import admin
 from .models import Profile  # LoginModel,
 from .models import FollowRelationShip, ProfileSettings, ResetPassword
 
-# @admin.register(LoginModel)
-# class LoginModelAdmin(admin.ModelAdmin):
-#     list_display = ["username_email", "code"]
+@admin.register(ResetPassword)
+class LoginModelAdmin(admin.ModelAdmin):
+    list_display = ["username_email", "code"]
 
 
 # @admin.register(Profile)
@@ -17,4 +17,4 @@ from .models import FollowRelationShip, ProfileSettings, ResetPassword
 admin.site.register(Profile)
 admin.site.register(ProfileSettings)
 admin.site.register(FollowRelationShip)
-admin.site.register(ResetPassword)
+# admin.site.register(ResetPassword)

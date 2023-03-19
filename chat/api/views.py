@@ -1,19 +1,26 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from rest_framework import generics, pagination
+from rest_framework import generics, pagination, filters
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-import datetime
+import datetime, json
 from django.utils import timezone
 
 from django.core.cache import cache
 from django.conf import settings
-from chat.models import Contact, Message
-from .serializers import MessageSerializer, UserSerializer
+from chat.models import Contact, Message, ImageChat
+from .serializers import MessageSerializer, UserSerializer, ImageChatSerializer
 
 User = get_user_model()
+
+class ImageChatAPI(generics.CreateAPIView):
+    serializer_class = ImageChatSerializer
+    queryset = ImageChat.objects.all()
+    permission_classes = [
+        IsAuthenticated,
+    ]
 
 
 class ContactAPI(generics.GenericAPIView):
@@ -22,13 +29,12 @@ class ContactAPI(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        
+
         user = request.user
         if user.is_authenticated:
             now = timezone.now()
-            cache.set('seen_%s' % (user.username), now, 
-                           settings.USER_LASTSEEN_TIMEOUT)
-        
+            cache.set("seen_%s" % (user.username), now, settings.USER_LASTSEEN_TIMEOUT)
+
         objs = Contact.objects.filter(Q(user__id=user.id) & Q(to__is_active=True))
         objs = objs.order_by("-updated")
 
@@ -42,11 +48,11 @@ class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 5
     # page_size_query_param = "page"
 
-
-class MessageAPI(generics.ListAPIView):
-
+class MessageAPI(generics.ListCreateAPIView):
     serializer_class = MessageSerializer
     pagination_class = StandardResultsSetPagination
+
+
     def get_queryset(self, *args, **kwargs):
 
         to = self.kwargs.get("to")
@@ -58,6 +64,14 @@ class MessageAPI(generics.ListAPIView):
 
         messages = obj1.union(obj2).order_by("-timestamp")
         return messages
+
+
+
+@api_view(["GET"])
+@permission_classes((IsAuthenticated,))
+def get_message(request, id=None):
+    msg = Message.objects.filter(id=id).first()
+    return Response(MessageSerializer(msg, context={"request":request}).data)
 
 
 @api_view(["GET"])

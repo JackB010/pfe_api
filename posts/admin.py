@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CommentPost, Post, Tag
+from .models import CommentPost, Post, Tag, ImageItem, PostByOwner, CommentReply
 
 
 @admin.register(Tag)
@@ -11,6 +11,9 @@ class TagAdmin(admin.ModelAdmin):
 
 
 admin.site.register(CommentPost)
+admin.site.register(PostByOwner)
+admin.site.register(ImageItem)
+admin.site.register(CommentReply)
 
 
 @admin.register(Post)

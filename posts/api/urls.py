@@ -4,7 +4,7 @@ from rest_framework import routers
 from .views import (
     CommentLikersAPI,
     FavoritePostAPI,
-    FollowingPostsAPI,
+    FavoritedSavedPostsAPI,
     LikePostAPI,
     LikePostCommentAPI,
     PostCommentAPI,
@@ -13,13 +13,28 @@ from .views import (
     PostViewSet,
     SavePostAPI,
     SearchPost,
+    ReplyCommentAPI,
+    ReplyCommentLikersAPI,
+    ReplyCommentUpdateAPI,
+    LikeCommentReplyAPI,
+    ImageItemAPI,
 )
 
 router = routers.DefaultRouter()
 router.register(r"", PostViewSet)
-# router.register(r"comment", PostCommentViewSet)
 
 urlpatterns = [
+    path(
+        "comment/reply/update/<str:cid>/",
+        ReplyCommentUpdateAPI.as_view(),
+        name="reply_update",
+    ),
+    path(
+        "comment/reply/likers/<str:cid>/", ReplyCommentLikersAPI.as_view(), name="reply_likers"
+    ),
+    path("comment/reply/like/", LikeCommentReplyAPI.as_view(), name="reply_like"),
+    path("comment/reply/<str:pid>/", ReplyCommentAPI.as_view(), name="reply"),
+
     path(
         "comment/update/<str:cid>/",
         PostCommentUpdateAPI.as_view(),
@@ -33,8 +48,13 @@ urlpatterns = [
     path("like/", LikePostAPI.as_view(), name="like_post"),
     path("favorite/", FavoritePostAPI.as_view(), name="like_post"),
     path("save/", SavePostAPI.as_view(), name="like_post"),
-    path("following/", FollowingPostsAPI.as_view(), name="following_posts"),
+    path(
+        "saved_favorited/<str:ptype>/",
+        FavoritedSavedPostsAPI.as_view(),
+        name="saved_favorited",
+    ),
     path("search/", SearchPost.as_view(), name="search_post"),
+    path("images/", ImageItemAPI.as_view(), name="post_images"),
     path("likers/<str:pid>/", PostLikersAPI.as_view(), name="post_likers"),
 ]
 urlpatterns += router.urls

@@ -9,13 +9,16 @@ from .views import (
     FollowingAPI,
     FollowRelationShipAPI,
     ProfileAPI,
-    RecommendedUsersAPI,
+    SuggestedUsersAPI,
     RegisterAPI,
     ResetPasswordAPI,
-    SearchUsetAPI,
+    SearchUserAPI,
     SettingsAPI,
+    UserPagesAPI,
     UserUpdateAPI,
+    get_user_type,
 )
+from .serializers import UserShortSerializer
 
 app_name = "profile"
 
@@ -37,12 +40,18 @@ urlpatterns = [
     ),
     path("settings/<uuid:id>/", SettingsAPI.as_view(), name="settings"),
     path("settings/", SettingsAPI.as_view(), name="settings"),
-    path("profile/user/<str:username>/", UserUpdateAPI.as_view(), name="user__update"),
+    path("profile/user/", UserUpdateAPI.as_view(), name="user__update"),
+    path("profile/user/pages/", UserPagesAPI.as_view(), name="user__pages"),
     path("profile/<str:user__username>/", ProfileAPI.as_view(), name="profile"),
     path("profile/", ProfileAPI.as_view(), name="profile"),
-    path("follow/", FollowRelationShipAPI.as_view(), name="follow"),
+    path("follow/<str:ftype>/", FollowRelationShipAPI.as_view(), name="follow"),
     path("follow/followers/<str:user__username>/", FollowersAPI.as_view()),
-    path("follow/following/<str:user__username>/", FollowingAPI.as_view()),
-    path("recommended/", RecommendedUsersAPI.as_view(), name="users__recommended"),
-    path("search/", SearchUsetAPI.as_view(), name="search uset"),
+    path("follow/following/<str:user__username>/<str:ftype>/", FollowingAPI.as_view()),
+    path(
+        "suggestedusers/<str:ftype>/<int:limit>/",
+        SuggestedUsersAPI.as_view(),
+        name="users_suggestion",
+    ),
+    path("search/", SearchUserAPI.as_view(), name="search_user"),
+    path("type/<str:user__username>/", get_user_type, name="type_check"),
 ]
