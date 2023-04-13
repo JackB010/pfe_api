@@ -7,6 +7,7 @@ from django.db.models import Q
 
 from .models import ChatRoom, Contact, Message
 from chat.api.serializers import ImageChatSerializer
+from accounts.api.views import check_type
 User = get_user_model()
 
 
@@ -86,39 +87,46 @@ class ChatConsumer(WebsocketConsumer):
     def connect(self):
         user1 = self.scope["user"]
         self.username = self.scope["url_route"]["kwargs"]["username"]
-        user2 = (
-            get_user_model()
-            .objects.filter(Q(username=self.username) & Q(is_active=True))
-            .first()
-        )
 
-        if user2 == None or self.username == user1.username:
-            self.room_group_name = f"chat_none"
-            async_to_sync(self.channel_layer.group_add)(
-                self.room_group_name, self.channel_name
+        if check_type(self.username) == 'profile':
+            user2 = (
+                get_user_model()
+                .objects.filter(Q(username=self.username) & Q(is_active=True))
+                .first()
             )
-            self.close()
-            return
+
+            if user2 == None or self.username == user1.username:
+                self.room_group_name = f"chat_none"
+                async_to_sync(self.channel_layer.group_add)(
+                    self.room_group_name, self.channel_name
+                )
+                self.close()
+                return
+            else:
+                room = ChatRoom.objects.filter(
+                    (Q(user1=user1) & Q(user2=user2)) | (Q(user1=user2) & Q(user2=user1))
+                ).first()
+                if room == None:
+                    Contact(user=user1, to=user2).save()
+                    Contact(user=user2, to=user1).save()
+                    room = ChatRoom(user1=user1, user2=user2)
+                    room.save()
+
+                self.room_group_name = f"chat_{room.id}"
+                async_to_sync(self.channel_layer.group_add)(
+                    self.room_group_name, self.channel_name
+                )
+                self.accept()
         else:
-            room = ChatRoom.objects.filter(
-                (Q(user1=user1) & Q(user2=user2)) | (Q(user1=user2) & Q(user2=user1))
-            ).first()
-            if room == None:
-                Contact(user=user1, to=user2).save()
-                Contact(user=user2, to=user1).save()
-                room = ChatRoom(user1=user1, user2=user2)
-                room.save()
-
-            self.room_group_name = f"chat_{room.id}"
-            async_to_sync(self.channel_layer.group_add)(
-                self.room_group_name, self.channel_name
-            )
-            self.accept()
+            self.room_group_name = "disconnect"
+            async_to_sync(self.channel_layer.group_add)(self.room_group_name, self.channel_name)
+            self.disconnect(1)
 
     def disconnect(self, close_code):
         async_to_sync(self.channel_layer.group_discard)(
-            self.room_group_name, self.channel_name
-        )
+                self.room_group_name, self.channel_name
+            )
+   
 
     def receive(self, text_data):
         data = json.loads(text_data)

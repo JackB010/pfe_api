@@ -13,6 +13,7 @@ class NotificationSerializer(serializers.ModelSerializer):
     event_made = serializers.SerializerMethodField(read_only=True)
     post = serializers.SerializerMethodField(read_only=True)
     comment = serializers.SerializerMethodField(read_only=True)
+    reply = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Notification
@@ -39,7 +40,10 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     def get_comment(self, obj):
         request = self.context.get("request")
-        return (obj.comment.comment, obj.comment.id) if obj.comment != None else None
+        return (obj.comment.comment, obj.comment.id, obj.comment.post.id) if obj.comment != None else None
+    def get_reply(self, obj):
+        request = self.context.get("request")
+        return (obj.reply.reply, obj.reply.id, obj.reply.comment.post.id) if obj.reply != None else None
 
     def get_created_by(self, obj):
         request = self.context.get("request")

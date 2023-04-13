@@ -18,12 +18,20 @@ from .views import (
     ReplyCommentUpdateAPI,
     LikeCommentReplyAPI,
     ImageItemAPI,
+    SearchPostInUser,
+    SearchPostInTag,
+    clear_images,
 )
 
 router = routers.DefaultRouter()
 router.register(r"", PostViewSet)
 
 urlpatterns = [
+    path(
+        "savedposts/<str:username>/",
+        FavoritedSavedPostsAPI.as_view(),
+        name="saved",
+    ),
     path(
         "comment/reply/update/<str:cid>/",
         ReplyCommentUpdateAPI.as_view(),
@@ -48,12 +56,11 @@ urlpatterns = [
     path("like/", LikePostAPI.as_view(), name="like_post"),
     path("favorite/", FavoritePostAPI.as_view(), name="like_post"),
     path("save/", SavePostAPI.as_view(), name="like_post"),
-    path(
-        "saved_favorited/<str:ptype>/",
-        FavoritedSavedPostsAPI.as_view(),
-        name="saved_favorited",
-    ),
+   
+    path("search/tag/", SearchPostInTag.as_view(), name="search_tag"),
+    path("search/user/", SearchPostInUser.as_view(), name="search_post"),
     path("search/", SearchPost.as_view(), name="search_post"),
+    path("images/clear/<str:id>/", clear_images, name="clear_images"),
     path("images/", ImageItemAPI.as_view(), name="post_images"),
     path("likers/<str:pid>/", PostLikersAPI.as_view(), name="post_likers"),
 ]

@@ -5,6 +5,7 @@ from uuid import uuid4
 
 # import pytz
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db import models
 from accounts.models import onDelete
@@ -21,7 +22,7 @@ def img_item(instance, filename):
 class BaseEvent(models.Model):
     id = models.UUIDField(default=uuid4, primary_key=True, editable=False)
     user = models.ForeignKey(get_user_model(), on_delete=onDelete)
-    duration = models.DurationField()
+    action_date = models.DateTimeField(default=timezone.now)
     deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField("created", auto_now_add=True)
 
@@ -31,9 +32,7 @@ class BaseEvent(models.Model):
     @property
     def done(self):
         if (
-            datetime.datetime.now().timestamp()
-            - (self.duration + self.created_at).timestamp()
-            > 0
+          timezone.now()   > self.action_date
         ):
             return True
         return False
@@ -58,6 +57,20 @@ class Event(BaseEvent):
 
     def __str__(self):
         return self.content[:50]
+
+
+
+class EventByOwner(models.Model):
+    user = models.ForeignKey(
+        get_user_model(), on_delete=onDelete, related_name="event_in_pages"
+    )
+    event = models.ForeignKey("Event", on_delete=onDelete)
+    page = models.ForeignKey(
+        get_user_model(), on_delete=onDelete, related_name="owner_event"
+    )
+
+    class Meta:
+        unique_together = ["user", "event"]
 
 
 class Choice(models.Model):

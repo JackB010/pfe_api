@@ -14,6 +14,8 @@ from chat.models import Contact, Message, ImageChat
 from .serializers import MessageSerializer, UserSerializer, ImageChatSerializer
 
 User = get_user_model()
+class StandardResultsSetPagination(pagination.PageNumberPagination):
+    page_size = 8
 
 class ImageChatAPI(generics.CreateAPIView):
     serializer_class = ImageChatSerializer
@@ -23,14 +25,19 @@ class ImageChatAPI(generics.CreateAPIView):
     ]
 
 
-class ContactAPI(generics.GenericAPIView):
+class ContactAPI(generics.ListAPIView):
     serializer_class = UserSerializer
-    queryset = Contact.objects.all()
+    queryset = get_user_model().objects.all()
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
+        "username",
+    ]
 
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self, *args, **kwargs):
 
-        user = request.user
+        user = self.request.user
         if user.is_authenticated:
             now = timezone.now()
             cache.set("seen_%s" % (user.username), now, settings.USER_LASTSEEN_TIMEOUT)
@@ -38,14 +45,13 @@ class ContactAPI(generics.GenericAPIView):
         objs = Contact.objects.filter(Q(user__id=user.id) & Q(to__is_active=True))
         objs = objs.order_by("-updated")
 
-        objs = [obj.to for obj in objs]
-        data = self.get_serializer(objs, many=True)
+        objs = [obj.to.id for obj in objs]
+        # data = self.get_serializer(objs, many=True)
+        return get_user_model().objects.filter(id__in=objs)
+        # return Response(data.data)
 
-        return Response(data.data)
 
 
-class StandardResultsSetPagination(pagination.PageNumberPagination):
-    page_size = 5
     # page_size_query_param = "page"
 
 class MessageAPI(generics.ListCreateAPIView):
@@ -59,10 +65,13 @@ class MessageAPI(generics.ListCreateAPIView):
         user = self.request.user
         to = User.objects.get(username=to)
 
-        obj1 = Contact.objects.get(user=user, to=to).messages.all()
-        obj2 = Contact.objects.get(user=to, to=user).messages.all()
+        obj1 = Contact.objects.get(user=user, to=to).messages.filter(deleted=False)
+        obj2 = Contact.objects.get(user=to, to=user).messages.filter(deleted=False)
 
         messages = obj1.union(obj2).order_by("-timestamp")
+        # for i in messages:
+        #     i.content = "Message deleted" if i.deleted else i.content
+        #     i.photos = ImageChat.objects.none() if i.deleted else i.photos.all()
         return messages
 
 

@@ -6,7 +6,7 @@ from django.db import models
 
 def img_chat(instance, filename):
     ext = filename.split(".")[-1]
-    upload_to = f"{instance.__class__.__name__}/{instance.id}/"
+    upload_to = f"{instance.__class__.__name__}/{instance.user.username}/"
     file_name = f"{instance.user.username}__{secrets.token_hex(10)}.{ext}"
     return os.path.join(upload_to, file_name)
 

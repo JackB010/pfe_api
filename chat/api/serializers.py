@@ -59,7 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
         last = cache.get("seen_%s" % obj.username)
         if last:
             now = timezone.now()
-            if now > (last + datetime.timedelta(seconds=settings.USER_ONLINE_TIMEOUT)):
+            if now > (last + datetime.timedelta(seconds=60)):
                 return False
             else:
                 return True
@@ -70,10 +70,9 @@ class UserSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         user = request.user
         to = obj
-        message_deleted = "Message deleted"
 
-        obj1 = Contact.objects.get(user=user, to=to).messages.last()
-        obj2 = Contact.objects.get(user=to, to=user).messages.last()
+        obj1 = Contact.objects.get(user=user, to=to).messages.filter(deleted=False).last()
+        obj2 = Contact.objects.get(user=to, to=user).messages.filter(deleted=False).last()
         if obj1 == None and obj2 == None:
             contact = None
         elif obj2 == None:
@@ -84,12 +83,11 @@ class UserSerializer(serializers.ModelSerializer):
             contact = obj1 if obj1.timestamp > obj2.timestamp else obj2
         if contact == None:
             return ""
-        deleted = contact.deleted
         content = {
-            "content": contact.content,
+            "content":contact.content,
             "photos": False if not contact.photos.all() else True,
         }
-        return message_deleted if deleted else content
+        return  content
 
     def get_unread_messages(self, obj):
         request = self.context.get("request")

@@ -63,6 +63,9 @@ class ProfileSettings(models.Model):
     show_full_name = models.CharField(
         choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
     )
+    show_pages_owned = models.CharField(
+        choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9
+    )
 
     show_gender = models.CharField(
         choices=PrivacieLevels.choices, default=PrivacieLevels.everyone, max_length=9

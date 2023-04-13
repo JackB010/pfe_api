@@ -13,19 +13,34 @@ from accounts.models import FollowRelationShip, Profile, ProfileSettings, FTypeC
 class UserShortSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField(read_only=True)
     ftype = serializers.SerializerMethodField(read_only=True)
+    is_following = serializers.SerializerMethodField(read_only=True)
+
     # photo_icon_url = serializers.SerializerMethodField(
     #     "get_photo_icon_url", read_only=True
     # )
+    count_followed_by = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Profile
-        fields = ["id", "username", "photo_icon", "ftype"]
+        fields = ["id", "username", "photo_icon", "ftype", "count_followed_by","is_following"]
 
     def get_ftype(self, obj):
         return "profile"
 
     def get_username(self, obj):
         return obj.user.username
+    def get_count_followed_by(self, obj):
+        return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
+
+    def get_is_following(self, obj):
+        request = self.context.get("request")
+        if request.user.id == None:
+            return ""
+        return (
+            True
+            if (obj.user.id,) in request.user.following.values_list("following")
+            else False
+        )
 
     # def get_photo_icon_url(self, obj):
     #     request = self.context.get("request")
@@ -62,9 +77,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     count_following_profile = serializers.SerializerMethodField(read_only=True)
     # country_show = serializers.SerializerMethodField(read_only=True)
     num_total_likes = serializers.SerializerMethodField(read_only=True)
-    num_total_favorites = serializers.SerializerMethodField(read_only=True)
+    num_total_pages = serializers.SerializerMethodField(read_only=True)
     num_total_posts = serializers.SerializerMethodField(read_only=True)
-    num_total_events = serializers.SerializerMethodField(read_only=True)
+    num_total_saved = serializers.SerializerMethodField(read_only=True)
     user = UserSerializer(read_only=True)
 
     class Meta:
@@ -80,9 +95,9 @@ class ProfileSerializer(serializers.ModelSerializer):
             "count_following_page",
             "count_following_profile",
             "num_total_likes",
-            "num_total_favorites",
+            "num_total_pages",
             "num_total_posts",
-            "num_total_events",
+            "num_total_saved",
             "bio",
             # "country",
             "user",
@@ -91,17 +106,38 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ("photo_icon",)
 
     def get_num_total_likes(self, obj):
-        return obj.user.post_set.aggregate(Count("likes"))["likes__count"]
+        return obj.user.post_set.filter(user__is_active=True).aggregate(Count("likes"))["likes__count"]
 
-    def get_num_total_favorites(self, obj):
-        return obj.user.post_set.aggregate(Count("favorited"))["favorited__count"]
+    def get_num_total_pages(self, obj):
+        # print()
+        # return obj.user.post_set.aggregate(Count("favorited"))["favorited__count"]
+        return obj.user.owners_page.all().count()
 
     def get_num_total_posts(self, obj):
         return obj.user.post_set.count()
 
-    def get_num_total_events(self, obj):
-        return obj.user.event_set.count()
+    def get_num_total_saved(self, obj):
+        data =  obj.user.posts_saved.filter(Q(deleted=False) & Q(user__is_active=True))
+        following = obj.user.following.all().values("following")
 
+        posts_m = data.filter(
+                Q(user=obj.user)
+                & Q(deleted=False)
+                & Q(show_post_to__in=["onlyme"])
+                & Q(user__is_active=True)
+                )
+        posts_f = data.filter(
+                Q(user__in=following)
+                & Q(deleted=False)
+                & Q(show_post_to__in=["followers"])
+                & Q(user__is_active=True)
+            )
+        posts = data.filter(
+                Q(deleted=False)
+                & Q(show_post_to__in=["everyone"])
+                & Q(user__is_active=True)
+            )
+        return (posts_m | posts_f | posts).count()
     def update(self, instance, validated_data):
         instance.photo_icon = validated_data.get("photo", instance.photo_icon)
         return super().update(instance, validated_data)
@@ -120,13 +156,13 @@ class ProfileSerializer(serializers.ModelSerializer):
         )
 
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.exclude(user=obj.user).count()
+        return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
 
     def get_count_following_page(self, obj):
-        return obj.user.following.filter(ftype=FTypeChoices.user_page).count()
+        return obj.user.following.filter(ftype=FTypeChoices.user_page).filter(Q(following__is_active=True)).exclude(following=obj.user).count()
 
     def get_count_following_profile(self, obj):
-        return obj.user.following.filter(ftype=FTypeChoices.user_user).count()
+        return obj.user.following.filter(ftype=FTypeChoices.user_user).filter( Q(following__is_active=True)).exclude(following=obj.user).count()
 
 
 class FollowRelationShipSerializer(serializers.Serializer):
@@ -137,7 +173,7 @@ class FollowRelationShipSerializer(serializers.Serializer):
 
         if request.user.username == data.get("username"):
             raise serializers.ValidationError("a user can not following himself")
-        obj = get_user_model().objects.filter(username=data.get("username")).first()
+        obj = get_user_model().objects.filter(Q(username=data.get("username")) & Q(is_active=True)).first()
         if obj == None:
             raise serializers.ValidationError("No user with this info ")
         return data
@@ -171,7 +207,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         username_email = data.get("username_email")
         if (
             get_user_model()
-            .objects.filter(Q(username=username_email) | Q(email=username_email))
+            .objects.filter(Q(username=username_email) | Q(email=username_email)) & Q(is_active=True)
             .count()
             == 0
         ):

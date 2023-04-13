@@ -48,7 +48,7 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
         )
 
     def get_num_likes(self, obj):
-        return obj.likes.count()
+        return obj.likes.filter( Q(is_active=True)).count()
 
     def create(self, validate_data):
         context = self.context
@@ -60,13 +60,14 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
             reply=validate_data.get("reply"), user=request.user, comment=comment
         )
         reply.save()
-        notification = Notification.objects.create(
-            to_user=comment.user,
-            created_by=request.user,
-            action=Notification.NotificationChoices.replied,
-            comment=comment,
-        )
-        notification.save()
+        if(comment.user!= request.user):
+            notification = Notification.objects.create(
+                to_user=comment.user,
+                created_by=request.user,
+                action=Notification.NotificationChoices.replied,
+                comment=comment,
+            )
+            notification.save()
         return reply
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -109,10 +110,10 @@ class CommentSerializer(serializers.ModelSerializer):
         )
 
     def get_num_likes(self, obj):
-        return obj.likes.count()
+        return obj.likes.filter(is_active=True).count()
 
     def get_num_replies(self, obj):
-        return CommentReply.objects.filter(Q(comment=obj) & Q(deleted=False)).count()
+        return CommentReply.objects.filter(Q(comment=obj) & Q(deleted=False)& Q(user__is_active=True)).count()
 
     def create(self, validate_data):
         context = self.context
@@ -124,13 +125,14 @@ class CommentSerializer(serializers.ModelSerializer):
             comment=validate_data.get("comment"), user=request.user, post=post
         )
         comment.save()
-        notification = Notification.objects.create(
-            to_user=post.user,
-            created_by=request.user,
-            action=Notification.NotificationChoices.commented,
-            post=post,
-        )
-        notification.save()
+        if(request.user != post.user):
+            notification = Notification.objects.create(
+                to_user=post.user,
+                created_by=request.user,
+                action=Notification.NotificationChoices.commented,
+                post=post,
+            )
+            notification.save()
         return comment
 
 
@@ -149,7 +151,7 @@ class ImageItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ImageItem
-        fields = ("image","user")
+        fields = ("id","image","user")
         extra_kwargs = {"user": {"write_only": True}}
 
     def create(self, validate_data):
@@ -166,7 +168,7 @@ class PostSerializer(serializers.ModelSerializer):
     num_comments = serializers.SerializerMethodField(read_only=True)
     num_favorited = serializers.SerializerMethodField(read_only=True)
     is_liked = serializers.SerializerMethodField(read_only=True)
-    is_favorited = serializers.SerializerMethodField(read_only=True)
+    is_saved = serializers.SerializerMethodField(read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
     by_owner = serializers.SerializerMethodField(read_only=True)
     images =  ImageItemSerializer(many=True, required=False)
@@ -190,7 +192,7 @@ class PostSerializer(serializers.ModelSerializer):
             "num_favorited",
             "deleted",
             "is_liked",
-            "is_favorited",
+            "is_saved",
             "allow_comments",
         )
         # depth = 1
@@ -212,9 +214,9 @@ class PostSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         return request.user in obj.likes.all()
 
-    def get_is_favorited(self, obj):
+    def get_is_saved(self, obj):
         request = self.context.get("request")
-        return request.user in obj.favorited.all()
+        return request.user in obj.saved.all()
 
     def get_profile(self, obj):
         request = self.context.get("request")
@@ -231,10 +233,10 @@ class PostSerializer(serializers.ModelSerializer):
         )
 
     def get_num_likes(self, obj):
-        return obj.likes.count()
+        return obj.likes.filter(is_active=True).count()
 
     def get_num_comments(self, obj):
-        return obj.comments.filter(deleted=False).count()
+        return obj.comments.filter(Q(deleted=False)& Q(user__is_active=True)).count()
 
     def get_num_favorited(self, obj):
         return obj.favorited.count()
@@ -281,11 +283,33 @@ class PostSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         instance.content = validated_data.get("content", instance.content)
         instance.deleted = validated_data.get("deleted", instance.deleted)
+        instance.show_post_to = validated_data.get("show_post_to", instance.show_post_to)
         tags = validated_data.get("tags")
-        instance.tags.clear()
-        if tags:
-            for tag in tags:
-                tag_item = Tag.objects.get_or_create(name=tag["name"])
-                instance.tags.add(tag_item[0])
+        if tags != instance.tags.all():
+            instance.tags.clear()
+            if tags:
+                for tag in tags:
+                    tag_item = Tag.objects.get_or_create(name=tag["name"])
+                    instance.tags.add(tag_item[0])
+
+        context = self.context
+        request = context.get("request")
+        id = validated_data.get("user", '')
+        obj = PostByOwner.objects.filter(post=instance).first()
+        user = request.user
+        if(id==''):
+            if obj:
+                obj.delete()
+            instance.user=user
+            instance.save()
+            return instance
+        if check_type(request.user) == "profile":
+            if id != "":
+                user = Page.objects.get(id=id).user
+                if obj==None:
+                    PostByOwner.objects.create(user=request.user, post=instance, page=user).save()
+
+            
+        instance.user = user
         instance.save()
         return instance

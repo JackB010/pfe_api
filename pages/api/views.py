@@ -10,7 +10,7 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from notifications.models import Notification
+# from notifications.models import Notification
 
 from .serializers import (
     RegisterSerializer,
@@ -38,12 +38,13 @@ class OwnerRelationShipAPI(generics.GenericAPIView):
         username = request.data.get("username")
         data = self.get_serializer(data=request.data)
         if data.is_valid():
+            print(username)
             user = get_object_or_404(get_user_model(), username=username)
             page = Page.objects.get(user=request.user)
-            if page.owners.filter(user__username=username).count() == 0:
-                page.owners.add(user.profile)
+            if page.owners.filter(username=username).count() == 0:
+                page.owners.add(user)
             else:
-                page.owners.remove(user.profile)
+                page.owners.remove(user)
             page.save()
             return Response({"status": status.HTTP_202_ACCEPTED})
         return Response(
@@ -58,7 +59,21 @@ class SearchPageAPI(generics.ListAPIView):
     search_fields = [
         "user__username",
         "user__email",
-        "user__profile__id",
+        "user__page__id",
+        "categories__name",
+    ]
+
+    def get_queryset(self):
+        return (
+            Page.objects.all()
+            if self.request.query_params.get("search")
+            else Page.objects.none()
+        )
+class SearchPageCatAPI(generics.ListAPIView):
+    serializer_class = PageShortSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
         "categories__name",
     ]
 
@@ -69,37 +84,53 @@ class SearchPageAPI(generics.ListAPIView):
             else Page.objects.none()
         )
 
-
-class SuggestedPagesAPI(generics.GenericAPIView):
+class SuggestedPagesAPI(generics.ListAPIView):
     serializer_class = PageShortSerializer
     queryset = Page.objects.all()
+    pagination_class = StandardResultsSetPagination
+    # filter_backends = [filters.SearchFilter]
+    # search_fields = [
+    #     "user__username",
+    #     "user__email",
+    #     "categories__name",
+    # ]
     permission_classes = [
         IsAuthenticated,
     ]
 
-    def get(self, request, limit=None, *args, **kwargs):
-        user = request.user
+    def get_queryset(self, *args, **kwargs):
+        user =self.request.user
         following = (
             FollowRelationShip.objects.filter(user=user, ftype=FTypeChoices.page_page)
             .exclude(Q(user=user) & Q(following=user))
             .values("following")
         )
-        cats = Page.objects.filter(user__in=following).values("categories").distinct()
+        
+        cats = Page.objects.filter(user__in=following, user__is_active=True).distinct().values("categories")
         obj = (
-            FollowRelationShip.objects.filter(ftype=FTypeChoices.page_page)
-            .exclude(Q(user=user))
-            .values("following")
-            .annotate(count_f=Count("following"))
-            .order_by("-count_f")
-            .values("following")
-        )[:limit]
-        data = (
-            Page.objects.filter(Q(user__in=obj) | Q(categories__in=cats))
-            .exclude(user__in=following)
-            .order_by("?")
-        )
-        data = self.get_serializer(data, many=True)
-        return Response(data.data)
+                FollowRelationShip.objects.filter(
+                    Q(ftype=FTypeChoices.page_page)
+                    & Q(following__page__categories__in=cats)
+                    & Q(user__is_active=True) & Q(following__is_active=True)
+                )
+                .exclude(following__in=following)
+                .values("following")
+                .annotate(count_f=Count("following"))
+                .order_by("-count_f")
+                .values("following")
+            )
+      
+        print(obj)
+        print(following)
+        if len(obj) < 20:
+            data = (
+                    Page.objects.all().exclude(user__in=following, user__is_active=True).exclude(user=user).order_by("?")
+                )
+        else:
+            data = Page.objects.filter(user__in=obj, user__is_active=True).exclude(user=user)       # 
+        data.order_by('?')
+        return data
+  
 
 
 class CategoryUpdateAPI(generics.GenericAPIView):
@@ -119,12 +150,25 @@ class CategoryUpdateAPI(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         categories = serializer.validated_data["categories"]
-        user.page.categories.clear()
+        user.page.categories.set([])
+        # for i in categories:
+            # cat, created = Category.objects.get_or_create(name=i)
+            # if not created:
+            #     cat.save()
+            # print(i)
+            # cat = Category.objects.filter(name=i).first()
+
+            # if cat == None:
+            #     cat = Category.objects.create(name=i)
+            #     cat.save()
+        cats =[]
         for i in categories:
-            cat, created = Category.objects.get_or_create(name=i)
-            if not created:
-                cat.save()
+            cat, created = Category.objects.get_or_create(name=i)       
+            cats.append(cat)
+        print(cats)
+        for cat in cats:
             user.page.categories.add(cat)
+
         user.page.save()
         return Response({"status": status.HTTP_200_OK})
 

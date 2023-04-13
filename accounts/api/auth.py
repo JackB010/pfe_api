@@ -11,9 +11,9 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     # @classmethod
     def get_token(self, user):
         token = super().get_token(user)
-        token["type"] = check_type(user.username)
+        token["ftype"] = check_type(user.username)
         request = self.context["request"]
-        if token["type"] == "profile":
+        if token["ftype"] == "profile":
             token["pid"] = str(user.profile.id)
             user.profile.ip = get_user_ip(request)
 
