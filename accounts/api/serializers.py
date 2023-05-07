@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
 from rest_framework import serializers
 
-from accounts.models import FollowRelationShip, Profile, ProfileSettings, FTypeChoices
+from accounts.models import FollowRelationShip, Profile, ProfileSettings, FTypeChoices, ConformAccount
 
 # from .views import check_type
 #################################
@@ -72,9 +72,10 @@ class SettingsSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField(read_only=True)
+    is_conformed = serializers.SerializerMethodField(read_only=True)
     count_followed_by = serializers.SerializerMethodField(read_only=True)
     count_following_page = serializers.SerializerMethodField(read_only=True)
-    count_following_profile = serializers.SerializerMethodField(read_only=True)
+    count_following = serializers.SerializerMethodField(read_only=True)
     # country_show = serializers.SerializerMethodField(read_only=True)
     num_total_likes = serializers.SerializerMethodField(read_only=True)
     num_total_pages = serializers.SerializerMethodField(read_only=True)
@@ -93,7 +94,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             # "birth_day",
             "count_followed_by",
             "count_following_page",
-            "count_following_profile",
+            "count_following",
             "num_total_likes",
             "num_total_pages",
             "num_total_posts",
@@ -101,6 +102,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "bio",
             # "country",
             "user",
+            "is_conformed"
         )
         # extra_kwargs = {"country": {"write_only": True}}
         read_only_fields = ("photo_icon",)
@@ -154,15 +156,18 @@ class ProfileSerializer(serializers.ModelSerializer):
             if (obj.user.id,) in request.user.following.values_list("following")
             else False
         )
-
+    def get_is_conformed(self, obj):
+        return ConformAccount.objects.filter(user = obj.user).first().checked
+      
     def get_count_followed_by(self, obj):
         return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
 
     def get_count_following_page(self, obj):
         return obj.user.following.filter(ftype=FTypeChoices.user_page).filter(Q(following__is_active=True)).exclude(following=obj.user).count()
 
-    def get_count_following_profile(self, obj):
-        return obj.user.following.filter(ftype=FTypeChoices.user_user).filter( Q(following__is_active=True)).exclude(following=obj.user).count()
+    def get_count_following(self, obj):
+        return obj.user.following.all().filter(Q(following__is_active=True)).exclude(following=obj.user).count()
+
 
 
 class FollowRelationShipSerializer(serializers.Serializer):
@@ -207,8 +212,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         username_email = data.get("username_email")
         if (
             get_user_model()
-            .objects.filter(Q(username=username_email) | Q(email=username_email)) & Q(is_active=True)
-            .count()
+            .objects.filter(Q(username=username_email) | Q(email=username_email) & Q(is_active=True)).count()
             == 0
         ):
             raise serializers.ValidationError("No user with this email or username")

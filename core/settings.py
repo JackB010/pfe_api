@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    
     # my_apps
     "accounts.apps.AccountsConfig",
     "posts.apps.PostsConfig",
@@ -80,12 +81,14 @@ CACHES = {
 # 
     }
 }
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:1111",
-]
+CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOWED_ORIGINS = [
+#     # "http://localhost:5173",
+#     # "http://127.0.0.1:5173",
+#     # "http://127.0.0.1:1111",
+#     # "http://127.0.0.1:7011",
+#     "http://127.0.0.1",
+# ]
 # CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = [
     "DELETE",
@@ -231,8 +234,8 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 # EMAIL
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = BASE_DIR / "tmp/app-messages"
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = env.int("FILE_UPLOAD_MAX_MEMORY_SIZE")

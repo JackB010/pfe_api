@@ -6,7 +6,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from events.models import Vote, Poll, Choice, Event, ImageEvent
+from events.models import  Event
 from .serializers import EventSerializer
 from notifications.models import Notification
 from accounts.models import FollowRelationShip, FTypeChoices

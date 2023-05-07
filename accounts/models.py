@@ -195,3 +195,34 @@ class ResetPassword(models.Model):
 
     def __str__(self):
         return f" rest for {self.username_email}"
+
+
+
+class ConformAccount(models.Model):
+
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid4)
+    user = models.ForeignKey(get_user_model(), on_delete=onDelete)
+    code = models.CharField(max_length=7, blank=False, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    checked = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        
+        # if self.username_email == None:
+        #     raise ValidationError("Should give username or email to conform password")
+        # obj = ConformAccount.objects.filter(username_email=self.username_email).first()
+        # if obj != None:
+        #     obj.delete()
+        self.code = self.generate_code()
+        super().save(*args, **kwargs)
+        
+
+    @property
+    def get_new_code(self):
+        self.code = generate_code()
+
+    def generate_code(self):
+        return random.randint(1000000, 9999999)
+
+    def __str__(self):
+        return f" Conform for {self.user}"

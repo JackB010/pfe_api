@@ -5,7 +5,7 @@ from accounts.models import onDelete
 
 # from images.models import Image
 from posts.models import Post, CommentPost, CommentReply
-from events.models import Poll, Event
+from events.models import  Event
 
 
 class Notification(models.Model):
@@ -43,7 +43,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     event_made = models.ForeignKey(Event, on_delete=onDelete, null=True, blank=True)
-    poll_made = models.ForeignKey(Poll, on_delete=onDelete, null=True, blank=True)
+    # poll_made = models.ForeignKey(Poll, on_delete=onDelete, null=True, blank=True)
     deleted = models.BooleanField(default=False)
     action = models.CharField(choices=NotificationChoices.choices, max_length=13)
     seen = models.BooleanField(default=False)

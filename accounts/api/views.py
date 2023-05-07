@@ -15,7 +15,7 @@ from accounts.models import (
     Profile,
     ProfileSettings,
     ResetPassword,
-    FTypeChoices,
+    FTypeChoices,ConformAccount,
 )
 from notifications.models import Notification
 
@@ -31,7 +31,7 @@ from .serializers import (
     UserShortSerializer,
 )
 from pages.api.serializers import PageShortSerializer
-from pages.models import Page
+from pages.models import Page, PageSettings
 
 # functions
 
@@ -68,7 +68,7 @@ class SearchUserAPI(generics.ListAPIView):
     serializer_class = UserShortSerializer
     pagination_class = StandardResultsSetPagination
     filter_backends = [filters.SearchFilter]
-    search_fields = ["user__username", "user__email"]
+    search_fields = ["user__username", "user__email", "id"]
 
     def get_queryset(self):
         user = self.request.user
@@ -178,22 +178,28 @@ class FollowersAPI(generics.ListAPIView):
 
     def get_serializer_class(self, *args, **kwargs):
         ftype = self.kwargs.get('ftype')
-        if(ftype== 'page'):
-            return PageShortSerializer
-        return UserShortSerializer
+        if(ftype in (FTypeChoices.user_user, FTypeChoices.user_page)):
+            return UserShortSerializer
+        return PageShortSerializer
 
     def get_queryset(self, *args, **kwargs):
         user__username = self.kwargs.get('user__username')
         ftype = self.kwargs.get('ftype')
         objs = FollowRelationShip.objects.filter(following__username=user__username, user__is_active=True, following__is_active=True).exclude(user__username=user__username)
         data = []
-        
-        for i in objs:
-            if check_type(i.user.username) == ftype:
-                if(ftype== 'page'):
-                    data.append(i.user.page)
-                else:
-                    data.append(i.user.profile)
+
+        # print(objs)
+        if ftype == "user_user":
+            data = objs.filter(ftype = FTypeChoices.user_user)
+            data = [i.user.profile for i in data]
+            
+        elif ftype == "user_page":
+            data = objs.filter(ftype = FTypeChoices.user_page)
+            data = [i.user.profile for i in data]
+
+        elif ftype == "page_page":
+            data = objs.filter(ftype = FTypeChoices.page_page)
+            data = [i.user.page for i in data]   
         return data
         
 
@@ -207,7 +213,7 @@ class FollowingAPI(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
     def get_serializer_class(self, *args, **kwargs):
         ftype= self.kwargs.get("ftype")
-        if(ftype in(FTypeChoices.page_page, FTypeChoices.user_page)):
+        if(ftype in (FTypeChoices.page_page, FTypeChoices.user_page)):
             return PageShortSerializer
         return UserShortSerializer
 
@@ -248,6 +254,14 @@ class FollowRelationShipAPI(generics.GenericAPIView):
                 user__is_active=True, following__is_active=True
             ).first()
             if f == None:
+                print(check_type(username) , username)
+                if(check_type(username)=="page"):
+                    a = Page.objects.filter(user__username=username, user__is_active=True).first()
+                    b = PageSettings.objects.filter(user__username=username, user__is_active=True).first()
+                    c = a.user.followed_by.filter(Q(user__is_active=True)).exclude(user=a.user).count()
+                    if(b.followers_limit):
+                        if(b.followers_limit_num >= c):
+                            return Response({"status": status.HTTP_406_NOT_ACCEPTABLE})
                 if ftype == "user_user":
                     obj = FollowRelationShip(
                         user=request.user, following=user, ftype=FTypeChoices.user_user
@@ -368,7 +382,7 @@ class CodeResetAPI(generics.GenericAPIView):
         if (now.hour - obj.created_at.hour) > 1 and (
             (now.day - obj.created_at.day) > 0
             or (now.month - obj.created_at.month) > 0
-            or (now.year - obj.created.year) > 0
+            or (now.year - obj.created_at.year) > 0
         ):
             obj.delete()
             return Response(
@@ -419,6 +433,14 @@ class RegisterAPI(generics.GenericAPIView):
         user.profile.first_ip = get_user_ip(request)
         user.profile.ip = get_user_ip(request)
         # user.profile.followers_profile.add(user)
+        objc = ConformAccount.objects.create(user = user)
+        objc.save()
+        print(objc)
+        template = render_to_string("email/code_conform.html", {"code": objc.code})
+        msg = EmailMessage("Getting conform code", template, "from@example.com", [user.email])
+        msg.content_subtype = "html"
+
+        msg.send()
         obj = FollowRelationShip(
             user=user, following=user, ftype=FTypeChoices.user_user
         )

@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import Profile  # LoginModel,
-from .models import FollowRelationShip, ProfileSettings, ResetPassword
+from .models import FollowRelationShip, ProfileSettings, ResetPassword,ConformAccount
 
 @admin.register(ResetPassword)
 class LoginModelAdmin(admin.ModelAdmin):
@@ -17,4 +17,4 @@ class LoginModelAdmin(admin.ModelAdmin):
 admin.site.register(Profile)
 admin.site.register(ProfileSettings)
 admin.site.register(FollowRelationShip)
-# admin.site.register(ResetPassword)
+admin.site.register(ConformAccount)

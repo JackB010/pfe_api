@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q
 from rest_framework import serializers
 
-from events.models import Vote, Poll, Choice, Event, ImageEvent, EventByOwner
+from events.models import Event, EventByOwner
 from pages.api.serializers import PageShortSerializer
 
 from notifications.models import Notification

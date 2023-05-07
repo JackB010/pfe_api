@@ -383,14 +383,22 @@ class PostViewSet(viewsets.ModelViewSet):
                 )
                 return (posts_m | posts_f).order_by('-created')
             else:
+                f = user1.following.filter(user=user1, following=user).count() != 0
+                print(f)
+                if f:
+                    PL = ["everyone", "followers"]
+                else:
+                    PL = ["everyone"]
                 posts_f = Post.objects.filter(
                     Q(deleted=False)
                     & Q(user=user)
-                    & Q(show_post_to__in=["everyone", "followers"])
+                    & Q(show_post_to__in=PL)
                     & Q(user__is_active=True)
                 )
                 if(user==user1):
+                    
                     return (posts_m | posts_f).order_by('-created')
+
                 return posts_f.order_by('-created')
         else:
             if check_type(user) == "page" and user!=None:

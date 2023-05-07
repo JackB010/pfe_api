@@ -12,11 +12,11 @@ from accounts.models import onDelete
 from pages.models import Page
 
 
-def img_item(instance, filename):
-    ext = filename.split(".")[-1]
-    upload_to = f"{instance.__class__.__name__}/{instance.user.username}/"
-    file_name = f"{instance.id}__{secrets.token_hex(10)}.{ext}"
-    return os.path.join(upload_to, file_name)
+# def img_item(instance, filename):
+#     ext = filename.split(".")[-1]
+#     upload_to = f"{instance.__class__.__name__}/{instance.user.username}/"
+#     file_name = f"{instance.id}__{secrets.token_hex(10)}.{ext}"
+#     return os.path.join(upload_to, file_name)
 
 
 class BaseEvent(models.Model):
@@ -38,22 +38,22 @@ class BaseEvent(models.Model):
         return False
 
 
-class ImageEvent(models.Model):
-    user = models.ForeignKey(get_user_model(), on_delete=onDelete)
-    photo = models.ImageField(
-        upload_to=img_item,
-        blank=True,
-        null=True,
-    )
+# class ImageEvent(models.Model):
+#     user = models.ForeignKey(get_user_model(), on_delete=onDelete)
+#     photo = models.ImageField(
+#         upload_to=img_item,
+#         blank=True,
+#         null=True,
+#     )
 
-    def clean(self, *args, **kwargs):
-        if self.photo.width <= 300 or self.photo.height <= 300:
-            raise ValidationError(_(f"{self.photo.name}  size not valid "))
+#     def clean(self, *args, **kwargs):
+#         if self.photo.width <= 300 or self.photo.height <= 300:
+#             raise ValidationError(_(f"{self.photo.name}  size not valid "))
 
 
 class Event(BaseEvent):
     content = models.TextField()
-    photos = models.ManyToManyField(ImageEvent, related_name="event_images", blank=True)
+    # photos = models.ManyToManyField(ImageEvent, related_name="event_images", blank=True)
 
     def __str__(self):
         return self.content[:50]
@@ -73,29 +73,29 @@ class EventByOwner(models.Model):
         unique_together = ["user", "event"]
 
 
-class Choice(models.Model):
-    id = models.UUIDField(default=uuid4, primary_key=True, editable=False)
-    name = models.CharField(max_length=100)
+# class Choice(models.Model):
+#     id = models.UUIDField(default=uuid4, primary_key=True, editable=False)
+#     name = models.CharField(max_length=100)
 
-    def __str__(self):
-        return self.name
-
-
-class Poll(BaseEvent):
-    question = models.CharField(max_length=200)
-    choices = models.ManyToManyField(Choice, related_name="poll_choice", blank=False)
-
-    def __str__(self):
-        return self.question[:50]
+#     def __str__(self):
+#         return self.name
 
 
-class Vote(models.Model):
-    user = models.ForeignKey(get_user_model(), on_delete=onDelete)
-    poll = models.ForeignKey(Poll, on_delete=onDelete)
-    choice = models.ForeignKey(Choice, on_delete=onDelete)
+# class Poll(BaseEvent):
+#     question = models.CharField(max_length=200)
+#     choices = models.ManyToManyField(Choice, related_name="poll_choice", blank=False)
 
-    class Meta:
-        unique_together = ["user", "poll", "choice"]
+#     def __str__(self):
+#         return self.question[:50]
 
-    def __str__(self):
-        return f"{self.user.username} voted in {self.poll} with {self.choice}"
+
+# class Vote(models.Model):
+#     user = models.ForeignKey(get_user_model(), on_delete=onDelete)
+#     poll = models.ForeignKey(Poll, on_delete=onDelete)
+#     choice = models.ForeignKey(Choice, on_delete=onDelete)
+
+#     class Meta:
+#         unique_together = ["user", "poll", "choice"]
+
+#     def __str__(self):
+#         return f"{self.user.username} voted in {self.poll} with {self.choice}"
