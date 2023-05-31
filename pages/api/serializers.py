@@ -36,16 +36,28 @@ class PageShortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Page
-        fields = ["id", "username", "photo_icon", "ftype", "count_followed_by","is_following"]
+        fields = [
+            "id",
+            "username",
+            "photo_icon",
+            "ftype",
+            "count_followed_by",
+            "is_following",
+        ]
 
     def get_username(self, obj):
         return obj.user.username
 
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.filter(user__is_active=True).exclude(user=obj.user).count()
+        return (
+            obj.user.followed_by.filter(user__is_active=True)
+            .exclude(user=obj.user)
+            .count()
+        )
 
     def get_ftype(self, obj):
         return "page"
+
     def get_is_following(self, obj):
         request = self.context.get("request")
         if request.user.id == None:
@@ -105,31 +117,33 @@ class PageSerializer(serializers.ModelSerializer):
         # return obj.user.post_set.filter(Q(deleted=False)).aggregate(Count("likes__is_active"))["likes__is_active__count"]
 
     def get_num_total_saved(self, obj):
-        data =  obj.user.posts_saved.filter(Q(deleted=False) & Q(user__is_active=True))
+        data = obj.user.posts_saved.filter(Q(deleted=False) & Q(user__is_active=True))
         following = obj.user.following.all().values("following")
 
         posts_m = data.filter(
-                Q(user=obj.user)
-                & Q(deleted=False)
-                & Q(show_post_to__in=["onlyme"])
-                & Q(user__is_active=True)
-                )
+            Q(user=obj.user)
+            & Q(deleted=False)
+            & Q(show_post_to__in=["onlyme"])
+            & Q(user__is_active=True)
+        )
         posts_f = data.filter(
-                Q(user__in=following)
-                & Q(deleted=False)
-                & Q(show_post_to__in=["followers"])
-                & Q(user__is_active=True)
-            )
+            Q(user__in=following)
+            & Q(deleted=False)
+            & Q(show_post_to__in=["followers"])
+            & Q(user__is_active=True)
+        )
         posts = data.filter(
-                Q(deleted=False)
-                & Q(show_post_to__in=["everyone"])
-                & Q(user__is_active=True)
-            )
+            Q(deleted=False)
+            & Q(show_post_to__in=["everyone"])
+            & Q(user__is_active=True)
+        )
         return (posts_m | posts_f | posts).count()
         # post_set.filter(Q(deleted=False)&Q(user__is_active=True)).aggregate(Count("saved"))["saved__count"]
 
     def get_num_total_posts(self, obj):
-        return obj.user.post_set.filter(Q(deleted=False) & Q(user__is_active=True)).count()
+        return obj.user.post_set.filter(
+            Q(deleted=False) & Q(user__is_active=True)
+        ).count()
 
     def get_num_total_events(self, obj):
         return obj.user.event_set.filter(deleted=False).count()
@@ -149,10 +163,12 @@ class PageSerializer(serializers.ModelSerializer):
         )
 
     def get_owners_list(self, obj):
-        settings = PageSettings.objects.filter(user=obj.user)
-        if settings[0].show_owners != True:
-            return Profile.objects.none()
         request = self.context.get("request")
+        if(request.user!=obj.user):
+            settings = PageSettings.objects.filter(user=obj.user)
+            if settings[0].show_owners != True:
+                return Profile.objects.none()
+
         return UserShortSerializer(
             [i.profile for i in obj.owners.filter(is_active=True)],
             many=True,
@@ -171,15 +187,25 @@ class PageSerializer(serializers.ModelSerializer):
     #     return data.data
 
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
+        return (
+            obj.user.followed_by.filter(Q(user__is_active=True))
+            .exclude(user=obj.user)
+            .count()
+        )
 
     def get_count_following(self, obj):
-        return obj.user.following.filter(Q(following__is_active=True)).exclude(following=obj.user).count()
+        return (
+            obj.user.following.filter(Q(following__is_active=True))
+            .exclude(following=obj.user)
+            .count()
+        )
+
     # def get_count_following_page(self, obj):
     #     return obj.user.following.filter(ftype=FTypeChoices.user_page).filter(Q(following__is_active=True)).exclude(following=obj.user).count()
 
     # def get_count_following_profile(self, obj):
     #     return obj.user.following.filter(ftype=FTypeChoices.user_user).filter( Q(following__is_active=True)).exclude(following=obj.user).count()
+
 
 # ModelSerializer
 
@@ -221,6 +247,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         user.save()
         PageSettings(user=user).save()
-        page= Page.objects.create(user=user,about=validated_data.get("about"))
+        page = Page.objects.create(user=user, about=validated_data.get("about"))
         page.save()
         return user

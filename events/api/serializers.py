@@ -24,7 +24,6 @@ class EventSerializer(serializers.ModelSerializer):
     user = serializers.CharField(allow_blank=True)
     by_owner = serializers.SerializerMethodField(read_only=True)
 
-
     class Meta:
         model = Event
         fields = (
@@ -58,7 +57,7 @@ class EventSerializer(serializers.ModelSerializer):
     def get_page(self, obj):
         request = self.context.get("request")
         return PageShortSerializer(obj.user.page, context={"request": request}).data
-    
+
     def update(self, instance, validated_data):
         instance.content = validated_data.get("content", instance.content)
         instance.deleted = validated_data.get("deleted", instance.deleted)
@@ -68,28 +67,26 @@ class EventSerializer(serializers.ModelSerializer):
         request = context.get("request")
         id = validated_data.get("user", None)
         user = request.user
-        if(id==None):
+        if id == None:
             instance.save()
             return instance
         if check_type(request.user) == "profile":
             if id != "":
                 user = Page.objects.get(id=id).user
-            
+
         instance.user = user
         instance.save()
         return instance
-    
+
     def create(self, validate_data):
         context = self.context
         request = context.get("request")
         id = validate_data["user"]
-        
+
         user = request.user
         if check_type(request.user) == "profile":
             if id != "":
                 user = Page.objects.get(id=id).user
-        
-            
 
         event = Event.objects.create(
             user=user,
@@ -98,7 +95,7 @@ class EventSerializer(serializers.ModelSerializer):
         )
 
         event.save()
-        if(id!=""):
+        if id != "":
             EventByOwner(user=request.user, event=event, page=user).save()
         users = FollowRelationShip.objects.filter(
             Q(ftype=FTypeChoices.user_page) & Q(following=request.user)

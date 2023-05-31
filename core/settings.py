@@ -17,7 +17,7 @@ SECRET_KEY = env.str("SECRET_KEY")
 
 DEBUG = env.bool("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-    
     # my_apps
     "accounts.apps.AccountsConfig",
     "posts.apps.PostsConfig",
@@ -62,8 +61,8 @@ REST_FRAMEWORK = {
     # ],
     "DEFAULT_SCHEMA_CLASS": "rest_framework.schemas.coreapi.AutoSchema",
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.BasicAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
+        # "rest_framework.authentication.BasicAuthentication",
+        # "rest_framework.authentication.SessionAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
     # 'DEFAULT_RENDERER_CLASSES': [
@@ -74,21 +73,22 @@ REST_FRAMEWORK = {
     # ]
 }
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'my_cache_table',
-                # 'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-# 
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "my_cache_table",
+        # 'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        #
     }
 }
 CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOWED_ORIGINS = [
-#     # "http://localhost:5173",
-#     # "http://127.0.0.1:5173",
-#     # "http://127.0.0.1:1111",
-#     # "http://127.0.0.1:7011",
-#     "http://127.0.0.1",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    # "http://localhost:5173",
+    # "http://127.0.0.1:5173",
+    # "http://127.0.0.1:1111",
+    # "http://127.0.0.1:7011",
+    "http://127.0.0.1",
+    "http://192.168.43.223",
+]
 # CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_METHODS = [
     "DELETE",
@@ -172,20 +172,31 @@ WSGI_APPLICATION = "core.wsgi.application"
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+     # "default": {
+     #     "ENGINE": "django.db.backends.sqlite3",
+     #     "NAME": BASE_DIR / "db.sqlite3",
+     # }
+   # "default": {
+   #     "ENGINE": "django.db.backends.sqlite3",
+   #     "NAME": BASE_DIR / "db2.sqlite3",
+   #  }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pfe_db',
+        'USER': 'postgres',
+        'PASSWORD': env.str('DB_PASSWORD'),
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'mydatabase',
-    #     'USER': 'mydatabaseuser',
-    #     'PASSWORD': 'mypassword',
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '5432',
-    # }
 }
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env.str("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD")
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -226,7 +237,7 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
-STATICFILES_DIRS =  [BASE_DIR / 'dist/assets']
+STATICFILES_DIRS = [BASE_DIR / "dist/assets", BASE_DIR / "dist" ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "/media/"
@@ -234,7 +245,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 # EMAIL
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 # EMAIL_BACKEND = "django.core.mail.backends.filebased.EmailBackend"
 EMAIL_FILE_PATH = BASE_DIR / "tmp/app-messages"
 

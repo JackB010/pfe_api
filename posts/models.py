@@ -102,9 +102,7 @@ class CommentPost(models.Model):
     likes = models.ManyToManyField(
         get_user_model(), related_name="comment_post_liked", blank=True
     )
-    reply =models.ManyToManyField(
-        'self',  blank=True
-    )
+    reply = models.ManyToManyField("self", blank=True)
     comment = models.TextField(blank=False, null=False)
     deleted = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
@@ -112,6 +110,7 @@ class CommentPost(models.Model):
 
     def __str__(self, *args, **kwargs):
         return self.comment[:20]
+
     @property
     def replies(self, *args, **kwargs):
         return CommentReply.objects.filter(Q(comment__id=self.id) & Q(deleted=False))
@@ -121,6 +120,7 @@ class CommentPost(models.Model):
             self.id = secrets.token_hex(16)
 
         return super().save(*args, **kwargs)
+
 
 class CommentReply(models.Model):
     id = models.CharField(max_length=32, primary_key=True, unique=True, editable=False)
@@ -142,5 +142,3 @@ class CommentReply(models.Model):
             self.id = secrets.token_hex(16)
 
         return super().save(*args, **kwargs)
-
-    

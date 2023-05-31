@@ -5,7 +5,7 @@ from accounts.models import onDelete
 
 # from images.models import Image
 from posts.models import Post, CommentPost, CommentReply
-from events.models import  Event
+from events.models import Event
 
 
 class Notification(models.Model):

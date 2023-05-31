@@ -1,3 +1,4 @@
+from django.conf import settings
 import datetime
 
 from django.contrib.auth import get_user_model, update_session_auth_hash
@@ -15,7 +16,8 @@ from accounts.models import (
     Profile,
     ProfileSettings,
     ResetPassword,
-    FTypeChoices,ConformAccount,
+    FTypeChoices,
+    ConformAccount,
 )
 from notifications.models import Notification
 
@@ -59,7 +61,7 @@ def get_user_type(request, user__username=None):
 
 # classes
 class StandardResultsSetPagination(pagination.PageNumberPagination):
-    page_size = 6
+    page_size = 9
     page_size_query_param = "search"
     max_page_size = 6
 
@@ -72,12 +74,14 @@ class SearchUserAPI(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        if (check_type(user) == 'page'):
-            pass
-        # return (
         
         if self.request.query_params.get("search"):
-            profiles= Profile.objects.all()
+            if user:
+                if self.request.query_params.get("search") == str(user.profile.id):
+                    profiles =Profile.objects.filter(Q(user__is_active=True))
+            else:
+                profiles = Profile.objects.filter(Q(user__is_active=True)
+                & Q(user__conformaccount__checked=True))
         else:
             profiles = Profile.objects.none()
         # )
@@ -91,13 +95,13 @@ class UserPagesAPI(generics.GenericAPIView):
         IsAuthenticated,
     ]
 
-    def get(self, request,user__username=None, *args, **kwargs):
-        if user__username ==None:
+    def get(self, request, user__username=None, *args, **kwargs):
+        if user__username == None:
             user = request.user
         else:
             user = get_user_model().objects.filter(username=user__username).first()
         data = user.owners_page.all()
-        
+
         data = self.get_serializer(data, many=True)
         return Response(data.data)
 
@@ -109,43 +113,68 @@ class SuggestedUsersAPI(generics.ListAPIView):
         IsAuthenticated,
     ]
     pagination_class = StandardResultsSetPagination
+
     def get_serializer_class(self, *args, **kwargs):
-        ftype= self.kwargs.get("ftype")
-        if(ftype in(FTypeChoices.page_page, FTypeChoices.user_page)):
+        ftype = self.kwargs.get("ftype")
+        if ftype in (FTypeChoices.page_page, FTypeChoices.user_page):
             return PageShortSerializer
         return UserShortSerializer
 
     def get_queryset(self, *args, **kwargs):
-        ftype = self.kwargs.get('ftype')
+        ftype = self.kwargs.get("ftype")
         user = self.request.user
         if ftype == "user_user":
             following = (
-                FollowRelationShip.objects.filter(user=user, ftype=ftype, user__is_active=True, following__is_active=True)
+                FollowRelationShip.objects.filter(
+                    user=user,
+                    ftype=ftype,
+                    user__is_active=True,
+                    following__is_active=True,
+                    user__conformaccount__checked=True,
+                   following__conformaccount__checked=True
+                )
                 .exclude(Q(user=user) & Q(following=user))
                 .values("following")
             )
             obj = (
-                FollowRelationShip.objects.filter(ftype=ftype, user__is_active=True, following__is_active=True)
+                FollowRelationShip.objects.filter(
+                    ftype=ftype, user__is_active=True, following__is_active=True,
+                    user__conformaccount__checked=True,
+                   following__conformaccount__checked=True
+                )
                 .exclude(Q(user__in=following) | Q(user=user))
                 .values("following")
                 .annotate(count_f=Count("following"))
                 .order_by("-count_f")
                 .values("following")
             )
-            data = Profile.objects.filter(user__in=obj, user__is_active=True).exclude(user=user).order_by("?")
+            data = (
+                Profile.objects.filter(user__in=obj).exclude(Q(user__in=following) | Q(user__is_active=False) | Q(user__conformaccount__checked=False))
+                .exclude(user=user)
+                .order_by("?")
+            )
             serializer = UserShortSerializer
         elif ftype == "user_page":
             following = FollowRelationShip.objects.filter(
-                user=user, ftype=ftype, user__is_active=True, following__is_active=True
+                user=user, ftype=ftype, user__is_active=True, following__is_active=True,
+                user__conformaccount__checked=True,
+                   following__conformaccount__checked=True
             ).values("following")
-            cats = Page.objects.filter(user__in=following, user__is_active=True).distinct().values("categories")
+            cats = (
+                Page.objects.filter(user__in=following, user__is_active=True,user__conformaccount__checked=True)
+                .distinct()
+                .values("categories")
+            )
             obj = (
                 FollowRelationShip.objects.filter(
                     Q(ftype=ftype)
                     | Q(ftype=FTypeChoices.page_page)
                     & Q(following__page__categories__in=cats)
-                    & Q(user__is_active=True) & Q(following__is_active=True)
-                )
+                    & Q(user__is_active=True)
+                    & Q(following__is_active=True)
+                    & Q(user__is_active=True)
+                    & Q(user__conformaccount__checked=True))
+                
                 .exclude(following__in=following)
                 .values("following")
                 .annotate(count_f=Count("following"))
@@ -154,10 +183,13 @@ class SuggestedUsersAPI(generics.ListAPIView):
             )
             if len(obj) < 20:
                 data = (
-                    Page.objects.all().exclude(user__in=following, user__is_active=True).order_by("?")
+                    Page.objects.filter(Q(user__is_active=True)
+                & Q(user__conformaccount__checked=True))
+                    .exclude(Q(user__in=following) | Q(user__is_active=False) | Q(user__conformaccount__checked=False))
+                    .order_by("?")
                 )
             else:
-                data = Page.objects.filter(user__in=obj, user__is_active=True)
+                data = Page.objects.filter(user__in=obj, user__is_active=True, user__conformaccount__checked=True).exclude(Q(user__in=following) | Q(user__is_active=False) | Q(user__conformaccount__checked=False))
             serializer = PageShortSerializer
         else:
             return []
@@ -177,31 +209,34 @@ class FollowersAPI(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
 
     def get_serializer_class(self, *args, **kwargs):
-        ftype = self.kwargs.get('ftype')
-        if(ftype in (FTypeChoices.user_user, FTypeChoices.user_page)):
+        ftype = self.kwargs.get("ftype")
+        if ftype in (FTypeChoices.user_user, FTypeChoices.user_page):
             return UserShortSerializer
         return PageShortSerializer
 
     def get_queryset(self, *args, **kwargs):
-        user__username = self.kwargs.get('user__username')
-        ftype = self.kwargs.get('ftype')
-        objs = FollowRelationShip.objects.filter(following__username=user__username, user__is_active=True, following__is_active=True).exclude(user__username=user__username)
+        user__username = self.kwargs.get("user__username")
+        ftype = self.kwargs.get("ftype")
+        objs = FollowRelationShip.objects.filter(
+            following__username=user__username,
+            user__is_active=True,
+            following__is_active=True,
+        ).exclude(user__username=user__username)
         data = []
 
         # print(objs)
         if ftype == "user_user":
-            data = objs.filter(ftype = FTypeChoices.user_user)
+            data = objs.filter(ftype=FTypeChoices.user_user)
             data = [i.user.profile for i in data]
-            
+
         elif ftype == "user_page":
-            data = objs.filter(ftype = FTypeChoices.user_page)
+            data = objs.filter(ftype=FTypeChoices.user_page)
             data = [i.user.profile for i in data]
 
         elif ftype == "page_page":
-            data = objs.filter(ftype = FTypeChoices.page_page)
-            data = [i.user.page for i in data]   
+            data = objs.filter(ftype=FTypeChoices.page_page)
+            data = [i.user.page for i in data]
         return data
-        
 
 
 class FollowingAPI(generics.ListAPIView):
@@ -211,30 +246,35 @@ class FollowingAPI(generics.ListAPIView):
         IsAuthenticated,
     ]
     pagination_class = StandardResultsSetPagination
+
     def get_serializer_class(self, *args, **kwargs):
-        ftype= self.kwargs.get("ftype")
-        if(ftype in (FTypeChoices.page_page, FTypeChoices.user_page)):
+        ftype = self.kwargs.get("ftype")
+        if ftype in (FTypeChoices.page_page, FTypeChoices.user_page):
             return PageShortSerializer
         return UserShortSerializer
 
     def get_queryset(self, *args, **kwargs):
         request = self.request
-        user__username= self.kwargs.get("user__username")
-        ftype= self.kwargs.get("ftype")
+        user__username = self.kwargs.get("user__username")
+        ftype = self.kwargs.get("ftype")
 
-        objs = FollowRelationShip.objects.filter(user__username=user__username,user__is_active=True, following__is_active=True).exclude(following__username=user__username)
-        data=[]
+        objs = FollowRelationShip.objects.filter(
+            user__username=user__username,
+            user__is_active=True,
+            following__is_active=True,
+        ).exclude(following__username=user__username)
+        data = []
         if ftype == "user_user":
-            data = objs.filter(ftype = FTypeChoices.user_user)
+            data = objs.filter(ftype=FTypeChoices.user_user)
             data = [i.following.profile for i in data]
-            
+
         elif ftype == "user_page":
-            data = objs.filter(ftype = FTypeChoices.user_page)
+            data = objs.filter(ftype=FTypeChoices.user_page)
             data = [i.following.page for i in data]
 
         elif ftype == "page_page":
-            data = objs.filter(ftype = FTypeChoices.page_page)
-            data = [i.following.page for i in data]   
+            data = objs.filter(ftype=FTypeChoices.page_page)
+            data = [i.following.page for i in data]
         return data
 
 
@@ -248,19 +288,31 @@ class FollowRelationShipAPI(generics.GenericAPIView):
         username = request.data.get("username")
         data = self.get_serializer(data=request.data)
         if data.is_valid():
-            user = get_object_or_404(get_user_model(), username=username, is_active=True)
+            user = get_object_or_404(
+                get_user_model(), username=username, is_active=True
+            )
             f = FollowRelationShip.objects.filter(
-                user=request.user, following=user,
-                user__is_active=True, following__is_active=True
+                user=request.user,
+                following=user,
+                user__is_active=True,
+                following__is_active=True,
             ).first()
             if f == None:
-                print(check_type(username) , username)
-                if(check_type(username)=="page"):
-                    a = Page.objects.filter(user__username=username, user__is_active=True).first()
-                    b = PageSettings.objects.filter(user__username=username, user__is_active=True).first()
-                    c = a.user.followed_by.filter(Q(user__is_active=True)).exclude(user=a.user).count()
-                    if(b.followers_limit):
-                        if(b.followers_limit_num >= c):
+                print(check_type(username), username)
+                if check_type(username) == "page":
+                    a = Page.objects.filter(
+                        user__username=username, user__is_active=True
+                    ).first()
+                    b = PageSettings.objects.filter(
+                        user__username=username, user__is_active=True
+                    ).first()
+                    c = (
+                        a.user.followed_by.filter(Q(user__is_active=True))
+                        .exclude(user=a.user)
+                        .count()
+                    )
+                    if b.followers_limit:
+                        if b.followers_limit_num >= c:
                             return Response({"status": status.HTTP_406_NOT_ACCEPTABLE})
                 if ftype == "user_user":
                     obj = FollowRelationShip(
@@ -275,9 +327,9 @@ class FollowRelationShipAPI(generics.GenericAPIView):
                         user=request.user, following=user, ftype=FTypeChoices.page_page
                     )
                 obj.save()
-                if(user !=request.user):
+                if user != request.user:
 
-                    notification,created  = Notification.objects.update_or_create(
+                    notification, created = Notification.objects.update_or_create(
                         to_user=user,
                         created_by=request.user,
                         action=Notification.NotificationChoices.followed,
@@ -324,7 +376,8 @@ class ProfileAPI(generics.RetrieveUpdateAPIView):
         return Response({"status": status.HTTP_404_NOT_FOUND})
 
     def get_queryset(self):
-        return Profile.objects.filter(user__is_active=True)
+        return Profile.objects.filter(Q(user__is_active=True)
+                & Q(user__conformaccount__checked=True))
 
 
 class SettingsAPI(generics.RetrieveUpdateAPIView):
@@ -335,7 +388,9 @@ class SettingsAPI(generics.RetrieveUpdateAPIView):
         if self.kwargs.get("id") == None:
             return self.request.user.settings
         else:
-            return get_object_or_404(Profile, id=self.kwargs.get("id"), user__is_active=True).user.settings
+            return get_object_or_404(
+                Profile, id=self.kwargs.get("id"), user__is_active=True
+            ).user.settings
 
 
 class ChangePasswordAPI(generics.GenericAPIView):
@@ -356,8 +411,8 @@ class ChangePasswordAPI(generics.GenericAPIView):
             user = (
                 get_user_model()
                 .objects.filter(
-                    Q(username=reset.username_email) | Q(email=reset.username_email) &
-                    Q(is_active=True)
+                    Q(username=reset.username_email)
+                    | Q(email=reset.username_email) & Q(is_active=True)
                 )
                 .first()
             )
@@ -401,18 +456,22 @@ class ResetPasswordAPI(generics.GenericAPIView):
         data = self.get_serializer(data=request.data)
         if data.is_valid():
             username_email = request.data["username_email"]
-            user = (
+            user = get_object_or_404(
                 get_user_model()
-                .objects.filter(Q(username=username_email) | Q(email=username_email) & Q(is_active=True))
-                .first()
+                ,
+                    Q(username=username_email)
+                    | Q(email=username_email) & Q(is_active=True)
             )
-            if user.id != None:
+            if user != None:
                 obj = ResetPassword(username_email=username_email)
                 obj.save()
 
                 template = render_to_string("email/code_reset.html", {"code": obj.code})
                 msg = EmailMessage(
-                    "Getting login page", template, "from@example.com", [user.email]
+                    "Code de confirmation",
+                    template,
+                    settings.EMAIL_HOST_USER,
+                    [user.email],
                 )
                 msg.content_subtype = "html"
 
@@ -421,6 +480,31 @@ class ResetPasswordAPI(generics.GenericAPIView):
         return Response(
             {"status": status.HTTP_406_NOT_ACCEPTABLE, "error": data.errors}
         )
+
+
+@api_view(["get"])
+def resendResetPasswordAPI(request, username_email):
+    user = (
+        get_user_model()
+        .objects.filter(
+            Q(username=username_email) | Q(email=username_email) & Q(is_active=True)
+        )
+        .first()
+    )
+    if user != None:
+        obj = ResetPassword.objects.filter(username_email=username_email).first()
+        if obj != None:
+            obj.get_new_code
+            obj.save()
+
+            template = render_to_string("email/code_reset.html", {"code": obj.code})
+            msg = EmailMessage(
+                "Code de confirmation", template, settings.EMAIL_HOST_USER, [user.email]
+            )
+            msg.content_subtype = "html"
+            msg.send()
+            return Response({"status": status.HTTP_200_OK})
+    return Response({"status": status.HTTP_406_NOT_ACCEPTABLE, "error": "no user"})
 
 
 class RegisterAPI(generics.GenericAPIView):
@@ -433,17 +517,68 @@ class RegisterAPI(generics.GenericAPIView):
         user.profile.first_ip = get_user_ip(request)
         user.profile.ip = get_user_ip(request)
         # user.profile.followers_profile.add(user)
-        objc = ConformAccount.objects.create(user = user)
-        objc.save()
-        print(objc)
-        template = render_to_string("email/code_conform.html", {"code": objc.code})
-        msg = EmailMessage("Getting conform code", template, "from@example.com", [user.email])
-        msg.content_subtype = "html"
-
-        msg.send()
         obj = FollowRelationShip(
             user=user, following=user, ftype=FTypeChoices.user_user
         )
         obj.save()
+
+        objc = ConformAccount.objects.create(user=user)
+        objc.save()
+        template = render_to_string("email/code_conform.html", {"code": objc.code, "username":objc.user.username})
+        msg = EmailMessage(
+            "Confirmez votre compte", template, settings.EMAIL_HOST_USER, [user.email]
+        )
+        msg.content_subtype = "html"
+        msg.send()
+        
         user.profile.save()
         return Response({"status": status.HTTP_200_OK})
+
+
+@api_view(["get"])
+def resendConfomAPI(request, username):
+    user = (
+        get_user_model()
+        .objects.filter(Q(username=username) & Q(is_active=True))
+        .first()
+    )
+    if user != None:
+        obj = ConformAccount.objects.filter(user=user).first()
+        if obj != None:
+            obj.get_new_code
+            obj.save()
+
+            template = render_to_string("email/code_conform.html", {"code": obj.code, "username":obj.user.username})
+            msg = EmailMessage(
+                "Confirmez votre compte", template, settings.EMAIL_HOST_USER, [user.email]
+            )
+            msg.content_subtype = "html"
+            msg.send()
+            return Response({"status": status.HTTP_200_OK})
+    return Response({"status": status.HTTP_406_NOT_ACCEPTABLE, "error": "no user"})
+
+
+class ConfomAPI(generics.GenericAPIView):
+
+    serializer_class = GetCodeResetSerializer
+    # permission_classes = [AllowAny]
+    def post(self, request, username):
+        code = request.data.get("code")
+        user = get_object_or_404(
+                get_user_model()
+                ,
+                    Q(username=username)
+                    | Q(email=username) & Q(is_active=True)
+            )
+        if user != None:
+            obj = ConformAccount.objects.filter(user=user).first()
+            if obj != None:
+                if int(obj.code) == code:
+                    obj.checked = True
+                    obj.save()
+                    return Response(
+                        {"status": status.HTTP_200_OK}, status=status.HTTP_200_OK
+                    )
+            return Response(
+                {"error": "get new code", "status": status.HTTP_406_NOT_ACCEPTABLE}
+            )

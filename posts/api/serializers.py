@@ -4,11 +4,12 @@ from django.db.models import Q
 import json
 from accounts.api.serializers import UserShortSerializer
 from notifications.models import Notification
-from posts.models import CommentPost, Post, Tag, ImageItem, PostByOwner,CommentReply
+from posts.models import CommentPost, Post, Tag, ImageItem, PostByOwner, CommentReply
 from pages.api.serializers import PageShortSerializer
 from accounts.api.views import check_type
 from pages.models import Page
 from accounts.models import PrivacieLevels
+
 
 class ReplyCommentSerializer(serializers.ModelSerializer):
     num_likes = serializers.SerializerMethodField(read_only=True)
@@ -48,7 +49,7 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
         )
 
     def get_num_likes(self, obj):
-        return obj.likes.filter( Q(is_active=True)).count()
+        return obj.likes.filter(Q(is_active=True)).count()
 
     def create(self, validate_data):
         context = self.context
@@ -60,7 +61,7 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
             reply=validate_data.get("reply"), user=request.user, comment=comment
         )
         reply.save()
-        if(comment.user!= request.user):
+        if comment.user != request.user:
             notification = Notification.objects.create(
                 to_user=comment.user,
                 created_by=request.user,
@@ -69,6 +70,7 @@ class ReplyCommentSerializer(serializers.ModelSerializer):
             )
             notification.save()
         return reply
+
 
 class CommentSerializer(serializers.ModelSerializer):
     num_likes = serializers.SerializerMethodField(read_only=True)
@@ -113,7 +115,9 @@ class CommentSerializer(serializers.ModelSerializer):
         return obj.likes.filter(is_active=True).count()
 
     def get_num_replies(self, obj):
-        return CommentReply.objects.filter(Q(comment=obj) & Q(deleted=False)& Q(user__is_active=True)).count()
+        return CommentReply.objects.filter(
+            Q(comment=obj) & Q(deleted=False) & Q(user__is_active=True)
+        ).count()
 
     def create(self, validate_data):
         context = self.context
@@ -125,7 +129,7 @@ class CommentSerializer(serializers.ModelSerializer):
             comment=validate_data.get("comment"), user=request.user, post=post
         )
         comment.save()
-        if(request.user != post.user):
+        if request.user != post.user:
             notification = Notification.objects.create(
                 to_user=post.user,
                 created_by=request.user,
@@ -151,7 +155,7 @@ class ImageItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ImageItem
-        fields = ("id","image","user")
+        fields = ("id", "image", "user")
         extra_kwargs = {"user": {"write_only": True}}
 
     def create(self, validate_data):
@@ -162,6 +166,7 @@ class ImageItemSerializer(serializers.ModelSerializer):
         post.save()
         return post.images.last()
 
+
 class PostSerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, required=False)
     num_likes = serializers.SerializerMethodField(read_only=True)
@@ -171,7 +176,7 @@ class PostSerializer(serializers.ModelSerializer):
     is_saved = serializers.SerializerMethodField(read_only=True)
     profile = serializers.SerializerMethodField(read_only=True)
     by_owner = serializers.SerializerMethodField(read_only=True)
-    images =  ImageItemSerializer(many=True, required=False)
+    images = ImageItemSerializer(many=True, required=False)
     user = serializers.CharField(allow_blank=True)
     show_post_to = serializers.CharField(allow_blank=True)
 
@@ -236,7 +241,7 @@ class PostSerializer(serializers.ModelSerializer):
         return obj.likes.filter(is_active=True).count()
 
     def get_num_comments(self, obj):
-        return obj.comments.filter(Q(deleted=False)& Q(user__is_active=True)).count()
+        return obj.comments.filter(Q(deleted=False) & Q(user__is_active=True)).count()
 
     def get_num_favorited(self, obj):
         return obj.favorited.count()
@@ -270,9 +275,9 @@ class PostSerializer(serializers.ModelSerializer):
 
         tags = validate_data["tags"]
         # tags  = json.loads(tags)
-    
+
         if tags:
-            for tag in tags:  
+            for tag in tags:
                 tag_item = Tag.objects.get_or_create(name=tag["name"])
                 post.tags.add(tag_item[0])
         post.save()
@@ -283,7 +288,9 @@ class PostSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         instance.content = validated_data.get("content", instance.content)
         instance.deleted = validated_data.get("deleted", instance.deleted)
-        instance.show_post_to = validated_data.get("show_post_to", instance.show_post_to)
+        instance.show_post_to = validated_data.get(
+            "show_post_to", instance.show_post_to
+        )
         tags = validated_data.get("tags")
         if tags != instance.tags.all():
             instance.tags.clear()
@@ -294,22 +301,23 @@ class PostSerializer(serializers.ModelSerializer):
 
         context = self.context
         request = context.get("request")
-        id = validated_data.get("user", '')
+        id = validated_data.get("user", "")
         obj = PostByOwner.objects.filter(post=instance).first()
         user = request.user
-        if(id==''):
+        if id == "":
             if obj:
                 obj.delete()
-            instance.user=user
+            instance.user = user
             instance.save()
             return instance
         if check_type(request.user) == "profile":
             if id != "":
                 user = Page.objects.get(id=id).user
-                if obj==None:
-                    PostByOwner.objects.create(user=request.user, post=instance, page=user).save()
+                if obj == None:
+                    PostByOwner.objects.create(
+                        user=request.user, post=instance, page=user
+                    ).save()
 
-            
         instance.user = user
         instance.save()
         return instance

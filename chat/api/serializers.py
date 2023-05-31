@@ -16,7 +16,7 @@ class ImageChatSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ImageChat
-        fields = ("photo","user")
+        fields = ("photo", "user")
         extra_kwargs = {"user": {"write_only": True}}
 
     def create(self, validate_data):
@@ -26,9 +26,11 @@ class ImageChatSerializer(serializers.ModelSerializer):
         msg.photos.create(photo=photo, user=msg.sender)
         msg.save()
         return msg.photos.last()
+
     # def get_photo(self, obj):
     #     request = self.context.get("request")
     #     return request.build_absolute_uri(obj.photo.url)
+
 
 class UserSerializer(serializers.ModelSerializer):
     last_message = serializers.SerializerMethodField(read_only=True)
@@ -71,8 +73,12 @@ class UserSerializer(serializers.ModelSerializer):
         user = request.user
         to = obj
 
-        obj1 = Contact.objects.get(user=user, to=to).messages.filter(deleted=False).last()
-        obj2 = Contact.objects.get(user=to, to=user).messages.filter(deleted=False).last()
+        obj1 = (
+            Contact.objects.get(user=user, to=to).messages.filter(deleted=False).last()
+        )
+        obj2 = (
+            Contact.objects.get(user=to, to=user).messages.filter(deleted=False).last()
+        )
         if obj1 == None and obj2 == None:
             contact = None
         elif obj2 == None:
@@ -84,10 +90,10 @@ class UserSerializer(serializers.ModelSerializer):
         if contact == None:
             return ""
         content = {
-            "content":contact.content,
+            "content": contact.content,
             "photos": False if not contact.photos.all() else True,
         }
-        return  content
+        return content
 
     def get_unread_messages(self, obj):
         request = self.context.get("request")

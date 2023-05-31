@@ -31,9 +31,7 @@ class BaseEvent(models.Model):
 
     @property
     def done(self):
-        if (
-          timezone.now()   > self.action_date
-        ):
+        if timezone.now() > self.action_date:
             return True
         return False
 
@@ -57,7 +55,6 @@ class Event(BaseEvent):
 
     def __str__(self):
         return self.content[:50]
-
 
 
 class EventByOwner(models.Model):

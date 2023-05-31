@@ -1,18 +1,18 @@
 from django.contrib import admin
 
 from .models import Profile  # LoginModel,
-from .models import FollowRelationShip, ProfileSettings, ResetPassword,ConformAccount
+from .models import FollowRelationShip, ProfileSettings, ResetPassword, ConformAccount
+
 
 @admin.register(ResetPassword)
 class LoginModelAdmin(admin.ModelAdmin):
     list_display = ["username_email", "code"]
 
 
-# @admin.register(Profile)
+# @admin.register(ConformAccount)
 # class ProfileAdmin(admin.ModelAdmin):
-#     list_display = ["user__username", "first_ip"]
+#     list_display = ["user__username", "code"]
 #     search_fields = ["user__username"]
-#     filter_fields = ["user__username", "country"]
 
 admin.site.register(Profile)
 admin.site.register(ProfileSettings)

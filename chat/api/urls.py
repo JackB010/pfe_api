@@ -1,6 +1,12 @@
 from django.urls import path
 
-from .views import ContactAPI, MessageAPI, unread_messages_num, ImageChatAPI, get_message
+from .views import (
+    ContactAPI,
+    MessageAPI,
+    unread_messages_num,
+    ImageChatAPI,
+    get_message,
+)
 
 urlpatterns = [
     path("", ContactAPI.as_view(), name="chat"),

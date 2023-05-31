@@ -49,10 +49,7 @@ class Contact(models.Model):
     updated = models.DateTimeField(auto_now=True)
     messages = models.ManyToManyField(Message, related_name="messages", blank=True)
 
-    class Meta:
-        ordering = [
-            "-updated",
-        ]
+   
 
     def __str__(self):
         return f"from {self.user.username} to {self.to.username}"

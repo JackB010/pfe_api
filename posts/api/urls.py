@@ -38,11 +38,12 @@ urlpatterns = [
         name="reply_update",
     ),
     path(
-        "comment/reply/likers/<str:cid>/", ReplyCommentLikersAPI.as_view(), name="reply_likers"
+        "comment/reply/likers/<str:cid>/",
+        ReplyCommentLikersAPI.as_view(),
+        name="reply_likers",
     ),
     path("comment/reply/like/", LikeCommentReplyAPI.as_view(), name="reply_like"),
     path("comment/reply/<str:pid>/", ReplyCommentAPI.as_view(), name="reply"),
-
     path(
         "comment/update/<str:cid>/",
         PostCommentUpdateAPI.as_view(),
@@ -56,7 +57,6 @@ urlpatterns = [
     path("like/", LikePostAPI.as_view(), name="like_post"),
     path("favorite/", FavoritePostAPI.as_view(), name="like_post"),
     path("save/", SavePostAPI.as_view(), name="like_post"),
-   
     path("search/tag/", SearchPostInTag.as_view(), name="search_tag"),
     path("search/user/", SearchPostInUser.as_view(), name="search_post"),
     path("search/", SearchPost.as_view(), name="search_post"),

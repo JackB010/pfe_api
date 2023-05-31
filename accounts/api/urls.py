@@ -17,6 +17,9 @@ from .views import (
     UserPagesAPI,
     UserUpdateAPI,
     get_user_type,
+    resendResetPasswordAPI,
+    ConfomAPI,
+    resendConfomAPI,
 )
 from .serializers import UserShortSerializer
 
@@ -26,7 +29,14 @@ urlpatterns = [
     path("token/", MyTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("register/", RegisterAPI.as_view(), name="register"),
+    path("conform/<str:username>/", ConfomAPI.as_view(), name="conform"),
+    path("conform/resend/<str:username>/", resendConfomAPI, name="resendConfomAPI"),
     path("reset_password/", ResetPasswordAPI.as_view(), name="reset_password"),
+    path(
+        "reset_password/resend/<str:username_email>/",
+        resendResetPasswordAPI,
+        name="resendResetPassword",
+    ),
     path("reset_password/code/", CodeResetAPI.as_view(), name="reset_password_code"),
     path(
         "reset_password/change/",
@@ -42,7 +52,11 @@ urlpatterns = [
     path("settings/", SettingsAPI.as_view(), name="settings"),
     path("profile/user/", UserUpdateAPI.as_view(), name="user__update"),
     path("profile/user/pages/", UserPagesAPI.as_view(), name="user__pages"),
-    path("profile/user/pages/<str:user__username>/", UserPagesAPI.as_view(), name="user__pages_uu"),
+    path(
+        "profile/user/pages/<str:user__username>/",
+        UserPagesAPI.as_view(),
+        name="user__pages_uu",
+    ),
     path("profile/<str:user__username>/", ProfileAPI.as_view(), name="profile"),
     path("profile/", ProfileAPI.as_view(), name="profile"),
     path("follow/<str:ftype>/", FollowRelationShipAPI.as_view(), name="follow"),

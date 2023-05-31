@@ -14,8 +14,11 @@ from chat.models import Contact, Message, ImageChat
 from .serializers import MessageSerializer, UserSerializer, ImageChatSerializer
 
 User = get_user_model()
+
+
 class StandardResultsSetPagination(pagination.PageNumberPagination):
-    page_size = 8
+    page_size = 10
+
 
 class ImageChatAPI(generics.CreateAPIView):
     serializer_class = ImageChatSerializer
@@ -42,22 +45,21 @@ class ContactAPI(generics.ListAPIView):
             now = timezone.now()
             cache.set("seen_%s" % (user.username), now, settings.USER_LASTSEEN_TIMEOUT)
 
-        objs = Contact.objects.filter(Q(user__id=user.id) & Q(to__is_active=True))
-        objs = objs.order_by("-updated")
+        objs = Contact.objects.filter(Q(user__id=user.id) & Q(to__is_active=True) &Q(user__conformaccount__checked=True))
+        objs = objs.order_by("updated")
 
         objs = [obj.to.id for obj in objs]
+        # users = [get_user_model().objects.filter(id=i).first() for i in objs][::-1]
         # data = self.get_serializer(objs, many=True)
         return get_user_model().objects.filter(id__in=objs)
         # return Response(data.data)
 
-
-
     # page_size_query_param = "page"
+
 
 class MessageAPI(generics.ListCreateAPIView):
     serializer_class = MessageSerializer
     pagination_class = StandardResultsSetPagination
-
 
     def get_queryset(self, *args, **kwargs):
 
@@ -75,12 +77,11 @@ class MessageAPI(generics.ListCreateAPIView):
         return messages
 
 
-
 @api_view(["GET"])
 @permission_classes((IsAuthenticated,))
 def get_message(request, id=None):
     msg = Message.objects.filter(id=id).first()
-    return Response(MessageSerializer(msg, context={"request":request}).data)
+    return Response(MessageSerializer(msg, context={"request": request}).data)
 
 
 @api_view(["GET"])

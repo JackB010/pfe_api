@@ -2,7 +2,13 @@ from django.contrib.auth import get_user_model
 from django.db.models import Q, Count
 from rest_framework import serializers
 
-from accounts.models import FollowRelationShip, Profile, ProfileSettings, FTypeChoices, ConformAccount
+from accounts.models import (
+    FollowRelationShip,
+    Profile,
+    ProfileSettings,
+    FTypeChoices,
+    ConformAccount,
+)
 
 # from .views import check_type
 #################################
@@ -22,15 +28,27 @@ class UserShortSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Profile
-        fields = ["id", "username", "photo_icon", "ftype", "count_followed_by","is_following"]
+        fields = [
+            "id",
+            "username",
+            "photo_icon",
+            "ftype",
+            "count_followed_by",
+            "is_following",
+        ]
 
     def get_ftype(self, obj):
         return "profile"
 
     def get_username(self, obj):
         return obj.user.username
+
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
+        return (
+            obj.user.followed_by.filter(Q(user__is_active=True))
+            .exclude(user=obj.user)
+            .count()
+        )
 
     def get_is_following(self, obj):
         request = self.context.get("request")
@@ -73,6 +91,7 @@ class SettingsSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField(read_only=True)
     is_conformed = serializers.SerializerMethodField(read_only=True)
+    is_sync = serializers.SerializerMethodField(read_only=True)
     count_followed_by = serializers.SerializerMethodField(read_only=True)
     count_following_page = serializers.SerializerMethodField(read_only=True)
     count_following = serializers.SerializerMethodField(read_only=True)
@@ -102,13 +121,16 @@ class ProfileSerializer(serializers.ModelSerializer):
             "bio",
             # "country",
             "user",
-            "is_conformed"
+            "is_conformed",
+            "is_sync",
         )
         # extra_kwargs = {"country": {"write_only": True}}
         read_only_fields = ("photo_icon",)
 
     def get_num_total_likes(self, obj):
-        return obj.user.post_set.filter(user__is_active=True).aggregate(Count("likes"))["likes__count"]
+        return obj.user.post_set.filter(user__is_active=True).aggregate(Count("likes"))[
+            "likes__count"
+        ]
 
     def get_num_total_pages(self, obj):
         # print()
@@ -119,27 +141,28 @@ class ProfileSerializer(serializers.ModelSerializer):
         return obj.user.post_set.count()
 
     def get_num_total_saved(self, obj):
-        data =  obj.user.posts_saved.filter(Q(deleted=False) & Q(user__is_active=True))
+        data = obj.user.posts_saved.filter(Q(deleted=False) & Q(user__is_active=True))
         following = obj.user.following.all().values("following")
 
         posts_m = data.filter(
-                Q(user=obj.user)
-                & Q(deleted=False)
-                & Q(show_post_to__in=["onlyme"])
-                & Q(user__is_active=True)
-                )
+            Q(user=obj.user)
+            & Q(deleted=False)
+            & Q(show_post_to__in=["onlyme"])
+            & Q(user__is_active=True)
+        )
         posts_f = data.filter(
-                Q(user__in=following)
-                & Q(deleted=False)
-                & Q(show_post_to__in=["followers"])
-                & Q(user__is_active=True)
-            )
+            Q(user__in=following)
+            & Q(deleted=False)
+            & Q(show_post_to__in=["followers"])
+            & Q(user__is_active=True)
+        )
         posts = data.filter(
-                Q(deleted=False)
-                & Q(show_post_to__in=["everyone"])
-                & Q(user__is_active=True)
-            )
+            Q(deleted=False)
+            & Q(show_post_to__in=["everyone"])
+            & Q(user__is_active=True)
+        )
         return (posts_m | posts_f | posts).count()
+
     def update(self, instance, validated_data):
         instance.photo_icon = validated_data.get("photo", instance.photo_icon)
         return super().update(instance, validated_data)
@@ -156,18 +179,41 @@ class ProfileSerializer(serializers.ModelSerializer):
             if (obj.user.id,) in request.user.following.values_list("following")
             else False
         )
+
     def get_is_conformed(self, obj):
-        return ConformAccount.objects.filter(user = obj.user).first().checked
-      
+        return ConformAccount.objects.filter(user=obj.user).first().checked
+
+    def get_is_sync(self, obj):
+        request = self.context.get("request")
+        user2 = request.parser_context.get("kwargs").get("user__username")
+        if user2 and request.user.id:
+            user = get_user_model().objects.filter(username=user2).first()
+            data = user.owners_page.all()
+            return data.filter(user=request.user).exists()
+        return False
+
     def get_count_followed_by(self, obj):
-        return obj.user.followed_by.filter(Q(user__is_active=True)).exclude(user=obj.user).count()
+        return (
+            obj.user.followed_by.filter(Q(user__is_active=True))
+            .exclude(user=obj.user)
+            .count()
+        )
 
     def get_count_following_page(self, obj):
-        return obj.user.following.filter(ftype=FTypeChoices.user_page).filter(Q(following__is_active=True)).exclude(following=obj.user).count()
+        return (
+            obj.user.following.filter(ftype=FTypeChoices.user_page)
+            .filter(Q(following__is_active=True))
+            .exclude(following=obj.user)
+            .count()
+        )
 
     def get_count_following(self, obj):
-        return obj.user.following.all().filter(Q(following__is_active=True)).exclude(following=obj.user).count()
-
+        return (
+            obj.user.following.all()
+            .filter(Q(following__is_active=True))
+            .exclude(following=obj.user)
+            .count()
+        )
 
 
 class FollowRelationShipSerializer(serializers.Serializer):
@@ -178,7 +224,11 @@ class FollowRelationShipSerializer(serializers.Serializer):
 
         if request.user.username == data.get("username"):
             raise serializers.ValidationError("a user can not following himself")
-        obj = get_user_model().objects.filter(Q(username=data.get("username")) & Q(is_active=True)).first()
+        obj = (
+            get_user_model()
+            .objects.filter(Q(username=data.get("username")) & Q(is_active=True))
+            .first()
+        )
         if obj == None:
             raise serializers.ValidationError("No user with this info ")
         return data
@@ -212,7 +262,10 @@ class ResetPasswordSerializer(serializers.Serializer):
         username_email = data.get("username_email")
         if (
             get_user_model()
-            .objects.filter(Q(username=username_email) | Q(email=username_email) & Q(is_active=True)).count()
+            .objects.filter(
+                Q(username=username_email) | Q(email=username_email) & Q(is_active=True)
+            )
+            .count()
             == 0
         ):
             raise serializers.ValidationError("No user with this email or username")

@@ -10,18 +10,32 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('accounts', '0002_profilesettings_show_pages_owned'),
+        ("accounts", "0002_profilesettings_show_pages_owned"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='ConformAccount',
+            name="ConformAccount",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('code', models.CharField(editable=False, max_length=7)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('checked', models.BooleanField(default=False)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("code", models.CharField(editable=False, max_length=7)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("checked", models.BooleanField(default=False)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

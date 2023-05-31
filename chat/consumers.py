@@ -8,6 +8,7 @@ from django.db.models import Q
 from .models import ChatRoom, Contact, Message
 from chat.api.serializers import ImageChatSerializer
 from accounts.api.views import check_type
+
 User = get_user_model()
 
 
@@ -19,7 +20,7 @@ class ChatConsumer(WebsocketConsumer):
             "content": "Message deleted" if message.deleted else message.content,
             "timestamp": str(message.timestamp),
             "seen": message.seen,
-            "photos":ImageChatSerializer(message.photos.all(), many=True).data,
+            "photos": ImageChatSerializer(message.photos.all(), many=True).data,
             "deleted": message.deleted,
         }
 
@@ -88,7 +89,7 @@ class ChatConsumer(WebsocketConsumer):
         user1 = self.scope["user"]
         self.username = self.scope["url_route"]["kwargs"]["username"]
 
-        if check_type(self.username) == 'profile':
+        if check_type(self.username) == "profile":
             user2 = (
                 get_user_model()
                 .objects.filter(Q(username=self.username) & Q(is_active=True))
@@ -104,7 +105,8 @@ class ChatConsumer(WebsocketConsumer):
                 return
             else:
                 room = ChatRoom.objects.filter(
-                    (Q(user1=user1) & Q(user2=user2)) | (Q(user1=user2) & Q(user2=user1))
+                    (Q(user1=user1) & Q(user2=user2))
+                    | (Q(user1=user2) & Q(user2=user1))
                 ).first()
                 if room == None:
                     Contact(user=user1, to=user2).save()
@@ -119,14 +121,15 @@ class ChatConsumer(WebsocketConsumer):
                 self.accept()
         else:
             self.room_group_name = "disconnect"
-            async_to_sync(self.channel_layer.group_add)(self.room_group_name, self.channel_name)
+            async_to_sync(self.channel_layer.group_add)(
+                self.room_group_name, self.channel_name
+            )
             self.disconnect(1)
 
     def disconnect(self, close_code):
         async_to_sync(self.channel_layer.group_discard)(
-                self.room_group_name, self.channel_name
-            )
-   
+            self.room_group_name, self.channel_name
+        )
 
     def receive(self, text_data):
         data = json.loads(text_data)
