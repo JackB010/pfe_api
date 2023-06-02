@@ -74,17 +74,18 @@ class SearchUserAPI(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        
+        profiles = Profile.objects.none()
         if self.request.query_params.get("search"):
-            if user:
+            if user.id != None:
                 if self.request.query_params.get("search") == str(user.profile.id):
                     profiles =Profile.objects.filter(Q(user__is_active=True))
+                else:
+                    profiles = Profile.objects.filter(Q(user__is_active=True)
+                & Q(user__conformaccount__checked=True))
             else:
                 profiles = Profile.objects.filter(Q(user__is_active=True)
                 & Q(user__conformaccount__checked=True))
-        else:
-            profiles = Profile.objects.none()
-        # )
+        
         return profiles
 
 
@@ -457,8 +458,7 @@ class ResetPasswordAPI(generics.GenericAPIView):
         if data.is_valid():
             username_email = request.data["username_email"]
             user = get_object_or_404(
-                get_user_model()
-                ,
+                get_user_model(),
                     Q(username=username_email)
                     | Q(email=username_email) & Q(is_active=True)
             )

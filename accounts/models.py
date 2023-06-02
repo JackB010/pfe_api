@@ -173,7 +173,7 @@ class ResetPassword(models.Model):
 
     id = models.UUIDField(primary_key=True, editable=False, default=uuid4)
     username_email = models.CharField(max_length=100, blank=False, unique=True)
-    code = models.CharField(max_length=6, blank=False, editable=False)
+    code = models.CharField(max_length=7, blank=False, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     checked = models.BooleanField(default=False)
 

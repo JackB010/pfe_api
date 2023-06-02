@@ -67,7 +67,8 @@ class SearchPageAPI(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         if self.request.query_params.get("search"):
-            if user:
+            print(user)
+            if user.id!=None:
                 if self.request.query_params.get("search") == str(user.page.id):
                     pages =Page.objects.filter(Q(user__is_active=True))
             else:
