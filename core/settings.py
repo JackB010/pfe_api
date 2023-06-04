@@ -176,18 +176,18 @@ DATABASES = {
      #     "ENGINE": "django.db.backends.sqlite3",
      #     "NAME": BASE_DIR / "db.sqlite3",
      # }
-   "default": {
-       "ENGINE": "django.db.backends.sqlite3",
-       "NAME": BASE_DIR / "db4.sqlite3",
+   # "default": {
+   #     "ENGINE": "django.db.backends.sqlite3",
+   #     "NAME": BASE_DIR / "db2.sqlite3",
+   #  }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'pfe_db',
+        'USER': 'postgres',
+        'PASSWORD': env.str('DB_PASSWORD'),
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
-    # 'default': {
-    #     'ENGINE': 'django.db.backends.postgresql',
-    #     'NAME': 'pfe_db',
-    #     'USER': 'postgres',
-    #     'PASSWORD': env.str('DB_PASSWORD'),
-    #     'HOST': '127.0.0.1',
-    #     'PORT': '5432',
-    # }
 }
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
